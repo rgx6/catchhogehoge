@@ -7,7 +7,8 @@ var express = require('express');
 var routes = require('./routes');
 var http = require('http');
 var path = require('path');
-var chatsockets = require('./sockets/chat.js');
+// TODO : rename
+var chatsockets = require('./sockets/server.js');
 
 var app = express();
 
@@ -27,15 +28,14 @@ if ('development' == app.get('env')) {
   app.use(express.errorHandler());
 }
 
-app.get('/', routes.index);
-app.post('/room', routes.room);
+// TODO : root変数化 
+app.get('/catchhogehoge', routes.index);
+app.post('/catchhogehoge/room', routes.room);
 
 var server = http.createServer(app);
-var io = require('socket.io').listen(server, {log:false});
-
 server.listen(app.get('port'), function(){
   console.log('Express server listening on port ' + app.get('port'));
 });
 
-// socket.io�̃R�l�N�V�����ݒ�
+var io = require('socket.io').listen(server, {log:false});
 io.sockets.on('connection', chatsockets.onConnection);

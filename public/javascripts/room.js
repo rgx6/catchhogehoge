@@ -2,39 +2,55 @@
 
 (function () {
   var socket;
-  var messageLogs = {};
 
   // ページロード時の処理
   $(document).ready(function () {
-    // ユーザー名、ルーム名、パスワードを送信
+    // サーバに接続
     socket = io.connect('http://localhost');
 
-    // メッセージハンドラの定義
+    // TODO : 部屋名とか設定（認証完了後か？）
+
+    //------------------------------
+    // メッセージハンドラ定義
+    //------------------------------
+
     // サーバーへの接続完了
     socket.on('connected', function(data) {
-      socket.emit('check credential', minichat);
+      console.log('connected');
+      // room への入室を通知する
+      // TODO : 認証情報を一緒に送る
+      socket.emit('enter room', {
+        roomName: credentials.roomName,
+        userName: credentials.userName,
+        token:    credentials.token
+      });
+    });
+
+    // 認証失敗
+    socket.on('enter room ng', function() {
+      console.log('enter room ng');
     });
 
     // 認証成功
-    socket.on('credential ok', function(data) {
-      socket.emit('request log', {});
+    socket.on('enter room ok', function() {
+      console.log('enter room ok');
+      // TODO : チャットログのリクエスト（不要か？）
+      socket.emit('request chat', credentials.roomName);
+      // 描画データのリクエスト
+      //socket.emit('reuqest image', credentials.roomName);
     });
 
-    // 認証失敗：ルーム名/パスワードの不一致
-    socket.on('invalid credential', function(data) {
-      authRetry('ルーム名/パスワードが不正です');
+    // 
+    socket.on('push chat', function(data) {
+      console.log('push chat');
+      for (var i = 0; i < data.length; i++) {
+        $('#messages').append(data[i].userName + ' : ' + data[i].message + '<br />');
+      }
     });
-
-    // 認証失敗：同名のルームがすでに存在
-    socket.on('room exists', function(data) {
-      authRetry('同名のルームがすでに存在します');
-    });
-
-    // 認証失敗：ルームに同名のユーザーが存在
-    socket.on('userName exists', function(data) {
-      authRetry('その名前はすでに使われています');
-    });
-
+    
+    
+    
+    
     // チャットログの送信
     socket.on('request log', function(data, callback) {
       callback(messageLogs);
@@ -59,18 +75,20 @@
 
     // チャットメッセージ受信
     socket.on('push message', function (message) {
+      console.log('push message');
       messageLogs[message.id] = message;
       prependMessage(message);
     });
 
     // チャットメッセージ送信
     $('#post-message').on('click', function () {
+      console.log('#post-message');
       var message = {
-        from: minichat.userName,
+        userName: credentials.userName,
         body: $('#message').val(),
-        roomId: minichat.roomId
+        roomName: credentials.roomName
       };
-      socket.emit('say', message, function () {
+      socket.emit('send chat', message, function () {
         // メッセージの送信に成功したらテキストボックスをクリアする
         $('#message').val('');
       });
@@ -79,11 +97,11 @@
     $('#credential-dialog-form').on('submit', function() {
       $('#credentialDialog').modal('hide');
       socket.emit('hash password', $('#new-password').val(), function (hashedPassword) {
-        minichat.roomName = $('#new-room').val();
-        minichat.userName = $('#new-name').val();
-        minichat.password = hashedPassword;
-        minichat.roomId = minichat.roomName + minichat.password;
-        socket.emit('check credential', minichat);
+        credentials.roomName = $('#new-room').val();
+        credentials.userName = $('#new-name').val();
+        credentials.password = hashedPassword;
+        credentials.roomId = credentials.roomName + credentials.password;
+        socket.emit('check credential', credentials);
       });
       return false;
     });
@@ -92,8 +110,8 @@
 
   function authRetry(message) {
     $('#credential-dialog-header').text(message);    
-    $('#new-room').val(minichat.roomName);
-    $('#new-name').val(minichat.userName);
+    $('#new-room').val(credentials.roomName);
+    $('#new-name').val(credentials.userName);
     $('#credentialDialog').modal('show');
   }
 

@@ -1,50 +1,70 @@
 extends layout
 block content
-
+  script(src='/javascripts/lobby.js')
   .container
     .hero-unit
       h1= title
-      p node.jsによるシンプルなチャットWebアプリケーション
+      p node.js と WebSocket と HTML5 で「キャッ○フィー○○○」を作ってみた
 
-    .row
-      .span6
-        h2 Create:
-        p チャットルームを新しく作成する
-        form#new.form-horizontal(action='/room/', method='post')
-          .control-group
-            label.control-label(for='new-room-name') 作成するルーム名
-            .controls
-              input#new-room(type='text', name='roomName', placeholder='ルーム名を入力...')
-          .control-group
-            label.control-label(for='new-name') 表示するあなたの名前
-            .controls
-              input#new-name(type='text', name='yourName', placeholder='表示名を入力...')
-          .control-group
-            label.control-label(for='new-password') 認証用パスワード
-            .controls
-              label
-                input#new-password(type='password', name='password', placeholder='パスワードを入力...')
-              button.btn(type='submit', name='mode', value='create') チャットルームを作成
+    .span6
+      h2 Create:
+      p 部屋を新しく作成する
+      form#new.form-horizontal
+        .control-group
+          label.control-label(for='new-room-name') 部屋名
+          .controls
+            input#new-room-name(type='text', name='newRoomName', placeholder='部屋名を入力...')
+        .control-group
+          label.control-label(for='new-room-comment') 部屋のコメント
+          .controls
+            input#new-room-comment(type='text', name='newRoomComment', placeholder='部屋のコメントを入力...')
+        .control-group
+          label.control-label(for='new-player-name') プレイヤー名
+          .controls
+            input#new-player-name(type='text', name='newuserName', placeholder='プレイヤー名を入力...')
+        .control-group
+          label.control-label(for='new-password') パスワード
+          .controls
+            input#new-password(type='password', name='newPassword', placeholder='パスワードを入力...')
+            br
+            br
+            button#create-room.btn(type='button') 部屋を作成
 
-      .span6
-        h2 Enter:
-        p 既存のチャットルームに入る
-        form#enter.form-horizontal(action='/room/', method='post')
-          .control-group
-            label.control-label(for='enter-room') ルーム名
-            .controls
-              input#enter-room(type='text', name='roomName', placeholder='ルーム名を入力...')
-          .control-group
-            label.control-label(for='enter-name') 表示するあなたの名前
-            .controls
-              input#enter-name(type='text', name='yourName', placeholder='表示名を入力...')
-          .control-group
-            label.control-label(for='enter-password') 認証用パスワード
-            .controls
-              label
-                input#enter-password(type='password', name='password', placeholder='パスワードを入力...')
-              button.btn(type='submit', name='mode', value='enter') チャットルームへ入る
+    .span6
+      h2 Enter:
+      p 既存の部屋に入る
+      form#enter.form-horizontal(action='./room', method='post')
+        .control-group
+          label.control-label(for='enter-room') ルーム名
+          .controls
+            input#enter-room(type='text', name='roomName', placeholder='ルーム名を入力...')
+        .control-group
+          label.control-label(for='enter-name') 表示するあなたの名前
+          .controls
+            input#enter-name(type='text', name='yourName', placeholder='表示名を入力...')
+        .control-group
+          label.control-label(for='enter-password') 認証用パスワード
+          .controls
+            label
+              input#enter-password(type='password', name='password', placeholder='パスワードを入力...')
+            button.btn(type='submit', name='mode', value='enter') チャットルームへ入る
 
-  hr
-  footer
-    p minichat 0.0.1
+//
+    .span6
+      h2 Create old:
+      p ルームを新しく作成する
+      form#new.form-horizontal(action='./room', method='post')
+        .control-group
+          label.control-label(for='new-room-name') 作成するルーム名
+          .controls
+            input#new-room(type='text', name='roomName', placeholder='ルーム名を入力...')
+        .control-group
+          label.control-label(for='new-name') 表示するあなたの名前
+          .controls
+            input#new-name(type='text', name='yourName', placeholder='表示名を入力...')
+        .control-group
+          label.control-label(for='new-password') 認証用パスワード
+          .controls
+            label
+              input#new-password(type='password', name='password', placeholder='パスワードを入力...')
+            button.btn(type='submit', name='mode', value='create') チャットルームを作成

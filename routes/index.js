@@ -5,37 +5,28 @@
 var crypto = require('crypto');
 
 exports.index = function(req, res){
-  res.render('index', { title: 'minichat' });
+  res.render('index', { title: 'catch hoge hoge' });
 };
 
 exports.room = function(req, res){
   var roomName = req.body.roomName || '';
-  var yourName = req.body.yourName || '';
-  var password = req.body.password || '';
-  var mode = req.body.mode;
+  var userName = req.body.userName || '';
+  var token    = req.body.token || '';
 
-  if (mode === undefined) {
+  // TODO : エラーページを表示するか、lobbyにリダイレクトさせたい
+  if (roomName === '' ||
+      userName === '' ||
+      token === '') {
     res.send(500);
     return;
   };
 
-  var hashedPassword = '';
-  var shasum = crypto.createHash('sha512');
-
-  if (password !== '') {
-    shasum.update('initialhash');
-    shasum.update(password);
-    hashedPassword = shasum.digest('hex');
-  }
-
+  // TODO : ここの仕組みを確認
   var params = {
-    title: 'チャットルーム：' + roomName,
-    room: {
-      name: roomName,
-      password: hashedPassword
-    },
-    user: {name: yourName},
-    mode: mode
+    title: 'ルーム：' + roomName,
+    roomName: roomName,
+    userName: userName,
+    token: token
   };
   res.render('room', params);
 };
