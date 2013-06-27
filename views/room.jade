@@ -15,8 +15,41 @@ block content
         ul.nav
           li: a ルーム名：#{roomName}
           li: a(href='/catchhogehoge/') 退出する
-          
+
   #main-contents.container
+    .row
+      div(style='float:left;')
+        canvas#mainCanvas(width='640', height='480', style='background-color:yellow;')
+          p お使いのブラウザはHTML5のCanvas要素に対応していません。
+      div(style='float:left;')
+        button.btn 普通のボタン
+        br
+        button.btn-primary 主要ボタン
+        br
+        button.btn-info 通知ボタン
+        br
+        button.btn-success 成功ボタン
+        br
+        button.btn-warning 警告ボタン
+        br
+        button.btn-danger 危険ボタン
+      div(style='float:left;')
+        table#users.table
+      ul(style='clear:both;;')
+        li(style='background-color:#000')
+        li(style='background-color:#fff')
+        li(style='background-color:#f00')
+        li(style='background-color:#0f0')
+        li(style='background-color:#00f')
+        li(style='background-color:#ff0')
+        li(style='background-color:#f0f')
+        li(style='background-color:#0ff')
+      #button
+        input#save(type='button', value='画像で保存')
+        input#clear(type='button', value='消去')
+        input#ready(type='button', value='準備完了')
+        input#cancel(type='button', value='取り消し')
+
     .row
       .span4
         h3: span#yourname #{userName}

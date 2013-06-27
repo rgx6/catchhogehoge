@@ -5,6 +5,8 @@
 
   // ページロード時の処理
   $(document).ready(function () {
+    console.log('ready');
+
     // サーバに接続
     socket = io.connect('http://localhost');
 
@@ -12,21 +14,35 @@
     // メッセージハンドラ定義
     //------------------------------
 
-    // サーバーへの接続完了
-    socket.on('connected', function(data) {
-      console.log("lobby : connected");
-      // lobby への入室を通知する
-      socket.emit('enter lobby');
+    // 接続できたら画面を初期化するための情報を要求する
+    socket.on('connected', function() {
+      console.log('connected');
+      socket.emit('init lobby')
     });
 
-    // TODO : コメント
-    socket.on('entered lobby', function() {
-      console.log("lobby : entered lobby");
-      // lobby 情報を要求する
-      socket.emit('request lobby');
+    // ロビー情報を受け取って表示を更新する
+    socket.on('update lobby', function(lobby) {
+      // TODO : 実装
+      console.log('update lobby');
+      //alert(lobby.toString());
+      updateLobby(lobby);
     });
 
+    // 部屋作成 パラメータ不備
+    socket.on('create room bad param', function() {
+      // TODO : 実装
+      console.log('create room bad param');
+    });
+
+    // 部屋作成 部屋名重複
+    socket.on('create room exist', function() {
+      // TODO : 実装
+      console.log('create room exist');
+    });
+
+    // 部屋作成 成功
     socket.on('create room ok', function(data) {
+      console.log('create room ok');
       // TODO : 必要なパラメータを持ってroomにpost
       // roomName, userName, token
       $.form({
@@ -36,47 +52,40 @@
       });
     });
 
-    // TODO : ↓見直し
-
-    // 認証失敗：パスワードが一致しない
-    socket.on('invalid credential', function(data) {
-      authRetry('ルーム名/パスワードが不正です');
+    // 既存部屋入室 パラメータ不備
+    socket.on('enter room bad param', function() {
+      // TODO : 実装
+      console.log('enter room bad param');
     });
 
-    // 認証失敗：同名のルームがすでに存在する
-    socket.on('room exist', function(data) {
-      authRetry('同名のルームがすでに存在します');
+    // 既存部屋入室 パスワード不一致
+    socket.on('enter room password ng', function() {
+      // TODO : 実装
+      console.log('enter room password ng');
     });
 
-    // 認証失敗：ルームに同名のユーザーが存在する
-    socket.on('user name exist', function(data) {
-      authRetry('その名前はすでに使われています');
+    // 既存部屋入室 ユーザー名重複
+    socket.on('enter room name exist', function() {
+      // TODO : 実装
+      console.log('enter room name exist');
     });
 
-    // lobby 情報の更新
-    socket.on('update lobby', function(lobby) {
-      updateLobby(lobby);
+    // 既存部屋入室 満員
+    socket.on('enter room full', function() {
+      // TODO : 実装
+      console.log('enter room full');
     });
 
-    // 認証成功
-    socket.on('credential ok', function(data) {
-      socket.emit('request log', {});
-    });
-
-
-    // チャットルームへのメンバー追加
-    socket.on('update members', function (members) {
-      $('#members').empty();
-      for (var i = 0; i < members.length; i++) {
-        var html = '<li>' + members[i] + '</li>';
-        $('#members').append(html);
-      }
-    });
-
-    // チャットメッセージ受信
-    socket.on('push message', function (message) {
-      messageLogs[message.id] = message;
-      prependMessage(message);
+    // 既存部屋入室 成功
+    socket.on('enter room ok', function(data) {
+      console.log('enter room ok');
+      // TODO : 必要なパラメータを持ってroomにpost
+      // roomName, userName, token
+      $.form({
+        type: 'post',
+        url: 'room',
+        data: { roomName: data.roomName, userName: data.userName, token: data.token },
+      });
     });
 
     //------------------------------
@@ -84,31 +93,32 @@
     //------------------------------
 
     // 部屋作成に必要な情報を送る
-    $('#create-room').on('click', function () {
+    $('#create-room').on('click', function() {
       // TODO : 入力値チェック
       var credentials = {
-        roomName:   $('#new-room-name').val(),
-        comment:    $('#new-room-comment').val(),
+        roomName: $('#new-room-name').val(),
+        comment:  $('#new-room-comment').val(),
         userName: $('#new-player-name').val(),
-        password:   $('#new-password').val(),
+        password: $('#new-password').val(),
         dictionary: null
       };
       socket.emit('create room', credentials);
     });
 
-    // TODO : 見直し↓
-    
-    $('#credential-dialog-form').on('submit', function() {
-      $('#credentialDialog').modal('hide');
-      socket.emit('hash password', $('#new-password').val(), function (hashedPassword) {
-        credentials.roomName = $('#new-room').val();
-        credentials.userName = $('#new-name').val();
-        credentials.password = hashedPassword;
-        credentials.roomId = credentials.roomName + credentials.password;
-        socket.emit('check credential', credentials);
-      });
-      return false;
+    $('#enter-room').on('click', function() {
+      // TODO : 一覧からの選択とパスワード、ユーザー名入力にする
+      // TODO : 入力値チェック
+      var credentials = {
+        roomName: $('#enter-room-name').val(),
+        userName: $('#enter-player-name').val(),
+        password: $('#enter-password').val(),
+      };
+      socket.emit('enter room', credentials);
     });
+
+    //------------------------------
+    // その他
+    //------------------------------
 
     // POST 後に画面遷移するための関数
     $.form = function(s) {
@@ -141,34 +151,22 @@
 
   }); // document.ready()ここまで
 
+  // TODO : ↑に入れる？
   // lobby 情報を表示する
-  function updateLobby(lobby) {
-    $('#rooms').empty();
-    var keys = Object.keys(lobby);
+  function updateLobby(rooms) {
+    // TODO : 整形
+    $('#roomList').empty();
+    var html = '';
+    html += "<table class='table' border='1'><tr><th>部屋名</th><th>パスワード</th><th>人数</th><th>コメント</th><th>辞書</th></tr>";
+    // TODO : ここのロジック検討
+    var keys = Object.keys(rooms);
     keys.sort();
-    keys.forEach(function (key) {
-      prependMessage(messageLogs[key]);
+    keys.forEach(function(key) {
+      html += '<tr><td>' + rooms[key].roomName + '</td><td>' + (rooms[key].password ? 'あり' : 'なし')
+            + '</td><td>' + rooms[key].users.length + '</td><td>' + rooms[key].comment + '</td><td>' + rooms[key].dictionary + '</td></tr>';
     });
-
-    var html = '<div class="message" id="' + message.id + '">'
-      + '<p class="postdate pull-right">' + message.date + '</p>'
-      + '<p class="author">' + message.from + '：</p>'
-      + '<p class="comment">' + message.body + '</p>'
-      + '</div>';
-    $('#messages').prepend(html);
-
-
-  }
-
-
-  // TODO : ↓見直し
-
-  function authRetry(message) {
-    $('#credential-dialog-header').text(message);    
-    $('#new-room').val(credentials.roomName);
-    $('#new-name').val(credentials.userName);
-    $('#credentialDialog').modal('show');
+    html += '</table>';
+    $('#roomList').append(html);
   }
 
 }).apply(this);
-

@@ -37,5 +37,7 @@ server.listen(app.get('port'), function(){
   console.log('Express server listening on port ' + app.get('port'));
 });
 
+// TODO : debug
 var io = require('socket.io').listen(server, {log:false});
-io.sockets.on('connection', chatsockets.onConnection);
+// TODO : globalにしたくない
+sockets = io.sockets.on('connection', chatsockets.onConnection);
