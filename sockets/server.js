@@ -6,23 +6,8 @@
 // TODO : init以外はroomとuserを必ずチェック。不正なら処理しない＆キック
 // TODO : in を使う？でもundefined/nullチェックするなら最初からそっちやればいい？
 
-// TODO : 見直し
-function Room(roomName, comment, password, dictionary) {
-  this.roomName       = roomName,
-  this.comment        = comment,
-  this.password       = password,
-  this.dictionary     = dictionary,
-  this.tokens         = {},
-  this.users          = [],
-  this.imagelog       = [],
-  this.mode           = 'chat',
-  this.round          = 0,
-  this.roundMax       = 2,
-  this.playerCountMax = 8,
-  this.timeLeft       = 0,
-  this.turnSecond     = 120;
-  // TODO : roomに関する処理をメソッドにするか？
-};
+var Room = require('./room.js');
+var Player = require('./player.js');
 
 // room を管理するオブジェクト
 var rooms = {};
@@ -167,7 +152,7 @@ exports.onConnection = function(client) {
     console.log('create room ok');
 
     // TODO : XSS対策
-    rooms[data.roomName] = new Room(data.roomName, data.comment, data.password, data.dictionary);
+    rooms[data.roomName] = new Room.Room(data.roomName, data.comment, data.password, data.dictionary);
 
     // 認証用トークン発行
     var token = Math.random();
@@ -275,7 +260,7 @@ exports.onConnection = function(client) {
 
     // 部屋にユーザー情報を登録
     // TODO : 必要なプロパティを検討
-    rooms[data.roomName].users.push({ name: data.userName, score: 0, ready: false, role: 'answerer' });
+    rooms[data.roomName].users.push(new Player.Player(data.userName));
 
     // socket に部屋名とプレイヤー名を持たせておく
     client.set('roomName', data.roomName);
@@ -583,11 +568,124 @@ function changeModeTurn(room) {
   if (room.round == 0) {
     // ゲーム開始時
     room.round = 1;
-    room.users[0].role = 'painter';
+    room.users[0].isPainter = true;
   } else {
     var i;
     for (i = 0; i < room.users.length; i++) {
-      if (room.users[i].role == 'painter') {
+      if (room.users[i].isPainter) {
+        break;
+      }
+    }
+
+    // TODO : 不要なチェックか？
+    if (i == room.users.length) {
+      console.log('painter not exist ' + room.roomName);
+      throw 'painter not exist ' + room.roomName;
+      return;
+    }
+
+    if (i == room.users.length - 1) {
+      // round終了
+      if (room.round == room.roundMax) {
+        // ゲーム終了
+        room.round = 0;
+        room.users[i].isPainter = false;
+        // TODO : ゲームの結果
+        // TODO : user情報の初期化は開始時に行うか？roleも含めて？
+        changeModeChat(room);
+      } else {
+        // 次のroundに
+        room.round += 1;
+        room.users[i].isPainter = false;
+        room.users[0].isPainter = true;
+      }
+    } else {
+      // 次のturnに
+      room.users[i].isPainter = false;
+      room.users[i+1].isPainter = true;
+    }
+  }
+  
+  room.mode = 'turn';
+  room.timeLeft = 3;
+}
+
+/**
+ * ゲーム開始時の初期化処理
+ */
+function initGame(room) {
+  console.log('[room:' + room.roomName + '] init game');
+
+  room.round = 1;
+  for (var i = 0; i < room.users.length; i++) {
+    room.users[i].isPainter = false;    
+  }
+  room.users[0].isPainter = true;
+  
+}
+
+/**
+ * ターン開始処理
+ */
+function startTurn(room) {
+  console.log('[room:' + room.roomName + '] start turn');
+  
+  // TODO : game start時の初期化は ready から turn に遷移する処理の前に行う
+  // TODO : game start / turn end  時に次の painter を決めるなど、内部的なturn開始処理を終わらせておく
+  // TODO : painterが退出した場合は、次に人がいればその人をpainterに、いなければgame end / next round 処理
+
+  // TODO : interval中に次のpainterが退室して、ゲーム終了になる場合を考慮
+
+  var i;
+  for (i = 0; i < room.users.length; i++) {
+    if (room.users[i].isPainter) {
+      break;
+    }
+  }
+
+  // TODO : 不要なチェックか？退出の処理漏れ次第では必要になりそう
+  if (i == room.users.length) {
+    console.log('painter not exist ' + room.roomName);
+    throw 'painter not exist ' + room.roomName;
+    return;
+  }
+
+  if (i == room.users.length - 1) {
+    // round終了
+    if (room.round == room.roundMax) {
+      // ゲーム終了
+      room.round = 0;
+      room.users[i].isPainter = false;
+      // TODO : ゲームの結果
+      // TODO : user情報の初期化は開始時に行うか？roleも含めて？
+      changeModeChat(room);
+    } else {
+      // 次のroundに
+      room.round += 1;
+      room.users[i].isPainter = false;
+      room.users[0].isPainter = true;
+    }
+  } else {
+    // 次のturnに
+    room.users[i].isPainter = false;
+    room.users[i+1].isPainter = true;
+  }
+}
+
+/**
+ * ターン終了処理
+ */
+function endTurn(room) {
+  console.log('[room:' + room.roomName + '] end turn');
+
+  if (room.round == 0) {
+    // ゲーム開始時
+    room.round = 1;
+    room.users[0].isPainter = true;
+  } else {
+    var i;
+    for (i = 0; i < room.users.length; i++) {
+      if (room.users[i].isPainter) {
         break;
       }
     }
