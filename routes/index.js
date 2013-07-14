@@ -28,5 +28,5 @@ exports.room = function(req, res){
     userName: userName,
     token: token
   };
-  res.render('room', params);
+  res.render('gameroom', params);
 };

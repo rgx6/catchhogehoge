@@ -8,7 +8,18 @@ a {
   color: #00B7FF;
 }
 
+.pallet {
+  width:  40px;
+  height: 40px;
+}
+
 #messages {
+  margin-top: 20px;
+  background: white;
+  border: 1px solid #bbb;
+}
+
+#sysmessages {
   margin-top: 20px;
   background: white;
   border: 1px solid #bbb;

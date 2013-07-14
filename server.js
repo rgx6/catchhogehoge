@@ -8,7 +8,7 @@ var routes = require('./routes');
 var http = require('http');
 var path = require('path');
 // TODO : rename
-var chatsockets = require('./sockets/server.js');
+var chatsockets = require('./sockets/app.js');
 
 var app = express();
 
@@ -28,9 +28,9 @@ if ('development' == app.get('env')) {
   app.use(express.errorHandler());
 }
 
-// TODO : root変数化 
+// TODO : route 変数化 
 app.get('/catchhogehoge', routes.index);
-app.post('/catchhogehoge/room', routes.room);
+app.post('/catchhogehoge/gameroom', routes.room);
 
 var server = http.createServer(app);
 server.listen(app.get('port'), function(){
