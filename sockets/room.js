@@ -271,6 +271,13 @@
     var messageLengthLimit = 100;
 
     /**
+     * 部屋が満員かどうか
+     */
+    Room.prototype.isFull = function () {
+      return this.users.length == this.playerCountMax;
+    }
+
+    /**
      * client送信用のプレイヤー情報を取得する
      */
     Room.prototype.getPlayersInfo = function () {
@@ -278,7 +285,7 @@
       for (var i = 0; i < this.users.length; i++) {
         var user = this.users[i];
         players.push({
-          name:      user.name,
+          name:      escapeHTML(user.name),
           score:     user.score,
           isReady:   user.isReady,
           isPainter: i == this.painterIndex ? true : false
@@ -338,7 +345,7 @@
             return;
           }
 
-          sockets.to(this.name).emit('push chat', { userName: playerName, message: message });
+          sockets.to(this.name).emit('push chat', { userName: escapeHTML(playerName), message: escapeHTML(message) });
 
           this.users[playerIndex].score  += this.timeLeft;
           this.users[this.painterIndex].score += this.timeLeft;
@@ -350,13 +357,13 @@
           // TODO : debug
           this.log('not answer');
 
-          sockets.to(this.name).emit('push chat', { userName: playerName, message: message });
+          sockets.to(this.name).emit('push chat', { userName: escapeHTML(playerName), message: escapeHTML(message) });
         }
       } else {
         // message を push する
         this.log('push chat ' + this.name + ' ' + playerName + ' ' + message);
 
-        sockets.to(this.name).emit('push chat', { userName: playerName, message: message });
+        sockets.to(this.name).emit('push chat', { userName: escapeHTML(playerName), message: escapeHTML(message) });
       }
     }
 
@@ -364,8 +371,9 @@
      * システムメッセージを送信する
      */
     Room.prototype.pushSystemMessage = function (message) {
-      this.log('push system message ' + this.name + ' ' + message);
-      sockets.to(this.name).emit('push system message', message);
+      // this.log('push system message ' + this.name + ' ' + message);
+
+      sockets.to(this.name).emit('push system message', escapeHTML(message));
     }
 
     /**
@@ -627,6 +635,15 @@
      */
     Room.prototype.log = function (message) {
       console.log('[' + this.name + '] ' + message);
+    }
+
+    // TODO : app.jsでも使ってるので共通化する
+    // TODO : 名前とかに&amp;入れると落ちる
+    /**
+     * HTMLエスケープ処理 
+     */
+    function escapeHTML (str) {
+      return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
     return Room;

@@ -66,7 +66,7 @@
      */
     socket.on('enter room ng', function () {
       console.log('enter room ng');
-
+      // TODO : このメッセージを送る処理を書く
       // TODO : エラー表示
       // TODO : lobby に redirect
     });

@@ -5,93 +5,40 @@
     console.log('ready');
 
     // サーバに接続
-    socket = io.connect('http://localhost');
+    var host = 'http://rgx.c.node-ninja.com/';
+    // var host = 'http://localhost';
+    socket = io.connect(host);
 
     //------------------------------
     // メッセージハンドラ定義
     //------------------------------
 
-    // 接続できたら画面を初期化するための情報を要求する
+    /**
+     * 接続できたら画面を初期化するための情報を要求する
+     */
     socket.on('connected', function () {
       console.log('connected');
+
       socket.emit('init lobby')
     });
 
-    // ロビー情報を受け取って表示を更新する
-    socket.on('update lobby', function (lobby) {
-      // TODO : 実装
+    /**
+     * 部屋情報を受け取って表示を更新する
+     */
+    socket.on('update lobby', function (rooms) {
       console.log('update lobby');
-      //alert(lobby.toString());
-      updateLobby(lobby);
-    });
 
-    // 部屋作成 パラメータ不備
-    socket.on('create room bad param', function () {
-      // TODO : 実装
-      console.log('create room bad param');
-    });
-
-    // 部屋作成 部屋名重複
-    socket.on('create room exist', function () {
-      // TODO : 実装
-      console.log('create room exist');
-    });
-
-    // 部屋作成 成功
-    socket.on('create room ok', function (data) {
-      console.log('create room ok');
-      // TODO : 必要なパラメータを持ってroomにpost
-      // roomName, userName, token
-      $.form({
-        type: 'post',
-        url: 'gameroom',
-        data: { roomName: data.roomName, userName: data.userName, token: data.token },
-      });
-    });
-
-    // 既存部屋入室 パラメータ不備
-    socket.on('enter room bad param', function () {
-      // TODO : 実装
-      console.log('enter room bad param');
-    });
-
-    // 既存部屋入室 パスワード不一致
-    socket.on('enter room password ng', function () {
-      // TODO : 実装
-      console.log('enter room password ng');
-    });
-
-    // 既存部屋入室 ユーザー名重複
-    socket.on('enter room name exist', function () {
-      // TODO : 実装
-      console.log('enter room name exist');
-    });
-
-    // 既存部屋入室 満員
-    socket.on('enter room full', function () {
-      // TODO : 実装
-      console.log('enter room full');
-    });
-
-    // 既存部屋入室 成功
-    socket.on('enter room ok', function (data) {
-      console.log('enter room ok');
-      // TODO : 必要なパラメータを持ってroomにpost
-      // roomName, userName, token
-      $.form({
-        type: 'post',
-        url: 'gameroom',
-        data: { roomName: data.roomName, userName: data.userName, token: data.token },
-      });
+      updateRoomsInfo(rooms);
     });
 
     //------------------------------
     // イベントハンドラ定義
     //------------------------------
 
-    // 部屋作成に必要な情報を送る
+    /**
+     * 部屋作成に必要な情報を送る
+     */
     $('#create-room').on('click', function () {
-      // TODO : 入力値チェック
       var credentials = {
         roomName: $('#new-room-name').val(),
         comment:  $('#new-room-comment').val(),
@@ -99,25 +46,99 @@
         password: $('#new-password').val(),
         dictionary: null
       };
-      socket.emit('create room', credentials);
+
+      socket.emit('create room', credentials, function (data) {
+        if (data.result == 'bad param') {
+          // TODO : エラー表示
+          alert('不正なパラメータです');
+        } else if (data.result == 'room exist') {
+          // TODO : エラー表示
+          alert('同じ名前の部屋があります');
+        } else if (data.result == 'ok') {
+          $.form({
+            type: 'post',
+            url:  'gameroom',
+            data: {
+              roomName: credentials.roomName,
+              userName: credentials.userName,
+              token:    data.token
+            }
+          });
+        } else {
+          // TODO : エラー
+          alert('予期しないエラーです');
+        }
+      });
     });
 
+    /**
+     * 既存の部屋への入室に必要な情報を送る
+     */
     $('#enter-room').on('click', function () {
-      // TODO : 一覧からの選択とパスワード、ユーザー名入力にする
-      // TODO : 入力値チェック
+      // TODO : 部屋を一覧から選択できるようにする
       var credentials = {
         roomName: $('#enter-room-name').val(),
         userName: $('#enter-player-name').val(),
         password: $('#enter-password').val(),
       };
-      socket.emit('enter room', credentials);
+
+      socket.emit('enter room', credentials, function (data) {
+        if (data.result == 'bad param') {
+          // TODO : エラー表示
+          alert('不正なパラメータです');
+        } else if (data.result == 'not exist') {
+          // TODO : エラー表示
+          alert('部屋がありません');
+        } else if (data.result == 'password ng') {
+          // TODO : エラー表示
+          alert('パスワードが違います');
+        } else if (data.result == 'full') {
+          // TODO : エラー表示
+          alert('満員です');
+        } else if (data.result == 'name exist') {
+          // TODO : エラー表示
+          alert('同じ名前のプレイヤーがいます');
+        } else if (data.result == 'ok') {
+          $.form({
+            type: 'post',
+            url:  'gameroom',
+            data: {
+              roomName: credentials.roomName,
+              userName: credentials.userName,
+              token:    data.token
+            }
+          });
+        } else {
+          // TODO : エラー
+          alert('予期しないエラーです');
+        }
+      });
     });
 
     //------------------------------
     // その他
     //------------------------------
-  
-    // POST 後に画面遷移するための関数
+
+    /**
+     * 部屋情報を表示する
+     */
+    function updateRoomsInfo (rooms) {
+      // TODO : 整形
+      $('#roomList').empty();
+      var html = '';
+      html += "<table class='table' border='1'><tr><th>部屋名</th><th>パスワード</th><th>人数</th><th>コメント</th><th>辞書</th></tr>";
+      for (var i = 0; i < rooms.length; i++) {
+        var room = rooms[i];
+        html += '<tr><td>' + room.name + '</td><td>' + (room.password ? 'あり' : 'なし')
+              + '</td><td>' + room.playerCount + '/' + room.playerCountMax + '</td><td>' + room.comment + '</td><td>' + room.dictionary + '</td></tr>';
+      };
+      html += '</table>';
+      $('#roomList').append(html);
+    }
+
+    /**
+     * POST 後に画面遷移するための関数
+     */
     $.form = function (s) {
       var def = {
         type: 'get',
@@ -145,21 +166,5 @@
   
       form[0].submit();
     }
-
-    // lobby 情報を表示する
-    function updateLobby (rooms) {
-      // TODO : 整形
-      $('#roomList').empty();
-      var html = '';
-      html += "<table class='table' border='1'><tr><th>部屋名</th><th>パスワード</th><th>人数</th><th>コメント</th><th>辞書</th></tr>";
-      for (var i = 0; i < rooms.length; i++) {
-        var room = rooms[i];
-        html += '<tr><td>' + room.name + '</td><td>' + (room.password ? 'あり' : 'なし')
-              + '</td><td>' + room.playerCount + '/' + room.playerCountMax + '</td><td>' + room.comment + '</td><td>' + room.dictionary + '</td></tr>';
-      };
-      html += '</table>';
-      $('#roomList').append(html);
-    }
   });
-
 })();

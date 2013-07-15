@@ -4,6 +4,12 @@
 // TODO : init以外はroomとuserを必ずチェック。不正なら処理しない(&キック?)
 // TODO : playerの認証をroomNameとplayerNameから、部屋が生成される度に変わるワンタイムのトークンに変える？
 
+// TODO : 別のファイルに切り出して共有
+var roomNameLengthLimit = 20;
+var commentLengthLimit = 40;
+var playerNameLengthLimit = 20;
+var passwordLengthLimit =  20;
+
 var Room = require('./room.js').Room;
 var Player = require('./player.js').Player;
 
@@ -19,7 +25,7 @@ var roomTimer = setInterval(function() {
   if (Math.abs(newTime - previousTime - 1000) >= 10) {
     console.log('call interval ' + (newTime - previousTime) + ' ' + newTime.toLocaleTimeString());
   }
-  // roomの時間経過タイマー処理本体を呼び出す
+  // roomの時間経過タイマー処理を呼び出す
   timerProc();
   previousTime = newTime;
 }, 1000);
@@ -48,7 +54,7 @@ exports.onConnection = function(client) {
   /**
    * lobby 初期化処理
    */
-  client.on('init lobby', function() {
+  client.on('init lobby', function () {
     console.log("init lobby");
 
     // lobby に join する
@@ -61,28 +67,34 @@ exports.onConnection = function(client) {
   /**
    * 新規roomの作成を受け付ける
    */
-  client.on('create room', function(data) {
-    console.log('create room : ' + data.roomName);
+  client.on('create room', function (data, fn) {
+    // console.log('create room : ' + data.roomName);
 
     // パラメータチェック
     // TODO : dictionaryの仕様が決まったらチェック
-    // TODO : 長さ上限もチェック必要
-    // TODO : 長さチェックはパスワードにも必要
-    if (data.roomName == null || data.userName == null) {
-      console.log('create room bad param');
-      client.emit('create room bad param');
+    if (data.roomName == null ||
+        data.roomName.length == 0 ||
+        data.roomName.length > roomNameLengthLimit ||
+        data.userName == null ||
+        data.userName.length == 0 ||
+        data.userName.length > playerNameLengthLimit ||
+        (data.comment != null && data.comment.length > commentLengthLimit) ||
+        (data.password != null && data.password.length > passwordLengthLimit)) {
+      // console.log('create room bad param');
+
+      fn({ result: 'bad param' });
       return;
     }
 
     // 部屋の存在チェック
     if (rooms[data.roomName] != null) {
-      console.log('create room exist')
-      client.emit('create room exist');
+      // console.log('create room exist')
+
+      fn({ result: 'room exist'});
       return;
     }
 
     // 作成OK
-    console.log('create room ok');
 
     // TODO : room作成のタイミングは画面遷移後に移すか？
     // TODO : XSS対策
@@ -92,31 +104,34 @@ exports.onConnection = function(client) {
     var token = Math.random();
     rooms[data.roomName].tokens[data.userName] = token;
 
-    client.emit('create room ok', {
-      roomName : data.roomName,
-      userName : data.userName,
-      token : token
-    });
+    fn({ result: 'ok', token: token });
   });
 
   /**
    * 既存roomへの入室を受け付ける
    */
-  client.on('enter room', function(data) {
-    console.log('enter room : ' + data.roomName);
+  client.on('enter room', function (data, fn) {
+    // console.log('enter room : ' + data.roomName);
 
     // パラメータチェック
-    // TODO : 長さチェックも必要
-    if (data.roomName == null || data.userName == null) {
-      console.log('enter room bad param');
-      client.emit('enter room bad param');
+    if (data.roomName == null ||
+        data.roomName.length == 0 ||
+        data.roomName.length > roomNameLengthLimit ||
+        data.userName == null ||
+        data.userName.length == 0 ||
+        data.userName.length > playerNameLengthLimit ||
+        (data.password != null && data.password.length > passwordLengthLimit)) {
+      // console.log('enter room bad param');
+
+      fn({ result: 'bad param' });
       return;
     }
 
     // 部屋の存在チェック
     if (rooms[data.roomName] == null) {
-      console.log('enter room not exist');
-      client.emit('enter room not exist');
+      /// console.log('enter room not exist');
+
+      fn({ result: 'not exist' });
       return;
     }
 
@@ -124,41 +139,38 @@ exports.onConnection = function(client) {
 
     // パスワードチェック
     if (room.password != data.password) {
-      console.log('enter room password ng');
-      client.emit('enter room password ng');
+      // console.log('enter room password ng');
+
+      fn({ result: 'password ng' });
       return;
     }
 
-    // TODO : うまく動いてない？
+    // 部屋定員チェック
+    if (room.isFull()) {
+      // console.log('enter room full');
+
+      fn({ result: 'full' });
+      return;
+    }
+
     // 名前重複チェック
-    for (var user in room.users) {
-      if (user.userName == data.userName) {
-        console.log('enter room name exist');
-        client.emit('enter room name exist');
+    for (var i = 0; i < room.users.length; i++) {
+      if (room.users[i].name == data.userName) {
+        // console.log('enter room name exist');
+
+        fn({ result: 'name exist' });
         return;
       }
     }
 
-    // 部屋定員チェック
-    if (room.users.length == room.playerCountMax) {
-      console.log('enter room full');
-      client.emit('enter room full');
-      return;
-    }
-
     // 入室OK
-    console.log('enter room ok');
 
     // 認証用トークン発行
     // TODO : 未使用トークンの（定期的な？）無効化処理をどこかでやる
     var token = Math.random();
     room.tokens[data.userName] = token;
 
-    client.emit('enter room ok', {
-      roomName : data.roomName,
-      userName : data.userName,
-      token : token
-    });
+    fn({ result: 'ok', token: token });
   });
 
   //------------------------------
@@ -386,10 +398,10 @@ function getRoomsInfo() {
   keys.forEach(function (key) {
     var room = rooms[key];
     roomsInfo.push({
-      name:           room.name,
-      comment:        room.comment,
+      name:           escapeHTML(room.name),
+      comment:        escapeHTML(room.comment),
       password:       room.password ? true : false,
-      dictionary:     room.dictionary.name,
+      dictionary:     escapeHTML(room.dictionary.name),
       playerCount:    room.users.length,
       playerCountMax: room.playerCountMax
     });
@@ -410,6 +422,13 @@ function updateLobby(client) {
     // 要求ユーザーのみ
     client.emit('update lobby', getRoomsInfo());
   }
+}
+
+/**
+ * HTMLエスケープ処理 
+ */
+function escapeHTML (str) {
+  return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 // TODO : 見直し

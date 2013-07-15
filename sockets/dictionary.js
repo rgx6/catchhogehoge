@@ -11,6 +11,7 @@
 
     Dictionary.prototype.getNextWord = function () {
       // TODO : 乱数調整
+      // TODO : お題にもHTMLエスケープ必要か？登録時にチェックすれば不要
       var nextIndex = Math.floor(Math.random() * this.words.length);
       return this.words[nextIndex];
     }
