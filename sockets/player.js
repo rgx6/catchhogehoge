@@ -8,7 +8,6 @@
       this.name      = name;
       this.score     = 0;
       this.isReady   = false;
-      this.isPainter = false;
       this.socket    = socket;
     }
   

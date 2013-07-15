@@ -48,21 +48,20 @@ block content
         div
           button#save.btn 保存
           br
-          button#clear.btn クリア
-          br
           button#ready.btn 準備完了
       div(style='float:left;')
         table#players
 
     .row
       .span6
+      .span6
+        form
+          input#message.span6(type='text', placeholder='メッセージを入力...')
+    .row
+      .span6
         #sysmessages.well
       .span6
         #messages.well
-        form
-          label
-            textarea#message.span4(rows='5', placeholder='メッセージを入力...')
-          button#post-message.btn.btn-primary(type='button') メッセージを投稿
 
     .modal-footer
-      a(href='/catchhogehoge/') トップページへ戻る
+      a(href='/catchhogehoge/') 退室する

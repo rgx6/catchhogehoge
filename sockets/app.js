@@ -209,6 +209,8 @@ exports.onConnection = function(client) {
     client.join(data.roomName);
 
     // TODO : 描画データ送信
+    client.emit('push image first', room.imagelog);
+    
     // TODO : ゲームの状態によってはお題なども表示
 
     client.emit('change mode', room.mode);
@@ -254,28 +256,24 @@ exports.onConnection = function(client) {
   /**
    *
    */
-  client.on('send image', function(data) {
+  client.on('send image', function (data) {
     // TODO : こまかいところ
 
     // 部屋名とプレイヤー名を socket から取り出す
     var roomName;
-    client.get('roomName', function(err, _roomName) {
+    client.get('roomName', function (err, _roomName) {
       if (err || !_roomName)
         return;
       roomName = _roomName;
     });
     var userName;
-    client.get('userName', function(err, _userName) {
+    client.get('userName', function (err, _userName) {
       if (err || !_userName)
         return;
       userName = _userName;
     });
 
-    // TODO : dataをためる。ただしclear, fillが送られてきた場合はためたdataを破棄する
-    sockets.to(roomName).emit('push image', {
-      userName : userName,
-      data : data
-    });
+    rooms[roomName].procImage(data, userName);
   });
 
   /**
@@ -403,13 +401,12 @@ function getRoomsInfo() {
  * lobby のユーザーに lobby 情報を送信する
  */
 function updateLobby(client) {
-  console.log('update lobby');
-  // TODO : 送る情報を限定する
-  console.log(getRoomsInfo());
   if (client == null) {
+    console.log('update lobby broad cast');
     // ブロードキャスト
     sockets.to('lobby').emit('update lobby', getRoomsInfo());
   } else {
+    console.log('update lobby');
     // 要求ユーザーのみ
     client.emit('update lobby', getRoomsInfo());
   }

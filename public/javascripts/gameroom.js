@@ -1,13 +1,44 @@
 // TODO : F5無効化
 
 (function () {
-  var socket;
-  var mode;
-  var isPainter;
-
   $(document).ready(function () {
 
+    // socketオブジェクト
+    var socket;
+    // ゲームモード
+    var mode;
+    // 自分が絵を描く役割かどうか
+    var isPainter;
+    // お絵かきデータの定期送信用タイマーオブジェクト
+    var timer;
+    // お絵かきデータの送信間隔(ミリ秒)
+    var setTimeoutMillisecond = 500;
+    // チャットの文字数制限
+    var messageLengthLimit = 100;
+
+    // お絵かきの変数
+    // 描画する始点のX座標
+    var startX;
+    // 描画する始点のY座標
+    var startY;
+    // TODO : color/widthの初期化は別の場所でやる？
+    // 描画する色
+    var color = 'Rgb(0, 0, 0)';
+    // 描画する線の太さ
+    var drawWidth = 1;
+    // 描画中フラグ
+    var drawFlag = false;
+    // canvasオブジェクト
+    var canvas = $('#mainCanvas').get(0);
+    // contextオブジェクト
+    var context;
+    // お絵かきデータのbuffer
+    var buffer = [];
+    // お絵かきデータ送信用のタイマーがセットされているか
+    var buffering = false;
+
     // TODO : 接続先を変数化
+    // serverに接続
     socket = io.connect('http://localhost');
 
     // TODO : 部屋名とか設定（認証完了後か？）
@@ -41,49 +72,44 @@
     });
 
     /**
-     * TODO : 
+     * 受け取ったメッセージを表示する 
      */
     socket.on('push chat', function (message) {
-      console.log('push chat');
-      $('#messages').append(message.userName + ' : ' + message.message + '<br />');
+      // console.log('push chat');
+
+      $('#messages').prepend(message.userName + ' : ' + message.message + '<br />');
     });
 
     /**
-     * TODO :
+     * 受け取ったシステムメッセージを表示する
      */
     socket.on('push system message', function (message) {
-      console.log('push system message');
-      $('#sysmessages').append(message + '<br />');
+      // console.log('push system message');
+
+      $('#sysmessages').prepend(message + '<br />');
     });
 
     /**
-     * TODO : 
+     * お絵かきデータの差分を受取る
      */
     socket.on('push image', function (data) {
       console.log('push image');
 
       // 自分が描いたデータは無視する
-      // TODO : 描いた本人には送らないようにserver側で制御したい 
+      // TODO : 通信量削減のためserver側で制御したい 
       if (data.userName == credentials.userName) {
         return;
       }
 
-      // TODO : rename data
-      for (var i = 0; i < data.data.length; i++) {
-        for (var j = 0; j < data.data[i].data.length; j++) {
-          var type = data.data[i].type;
-          var width = data.data[i].width;
-          var color = data.data[i].color;
-          var d = data.data[i].data[j];
+      drawData(data.data);
+    });
 
-          if (type == 'line') {
-            drawLine(d.xs, d.ys, d.xe, d.ye, width, color);
-          } else if (type == 'point') {
-            drawPoint(d.x, d.y, width, color);
-          } else {
-            // TODO : あとで
-          }
-        }
+    /**
+     * 途中入室時にお絵かきデータをまとめて受け取る
+     */
+    socket.on('push image first', function (data) {
+      for (var i = 0; i < data.length; i++) {
+        drawData(data[i]);
       }
     });
 
@@ -105,13 +131,22 @@
     });
 
     /**
+     * canvasをクリアする
+     */
+    socket.on('clear canvas', function () {
+      console.log('clear canvas');
+
+      fillRect('Rgb(255, 255, 255)');
+    });
+
+    /**
      * 残り時間の表示を更新
      */
     socket.on('send time left', function (timeLeft) {
       console.log('send time left');
 
       $('#time').empty();
-      $('#time').append('残り時間 ' + timeLeft + '秒');
+      $('#time').append('残り時間 ' + timeLeft + ' 秒');
     });
 
     /**
@@ -121,7 +156,16 @@
       console.log('send theme');
 
       $('#theme').empty();
-      $('#theme').append('お題：' + theme);
+      $('#theme').append('お題 ： ' + theme);
+    });
+
+    /**
+     * painterかどうかを設定する
+     */
+    socket.on('send is painter', function (data) {
+      console.log('send is painter');
+
+      isPainter = data;
     });
 
     /**
@@ -140,41 +184,30 @@
     // イベントハンドラ定義
     //------------------------------
 
-    // チャットメッセージ送信
-    $('#post-message').on('click', function () {
-      console.log('#post-message click');
+    /**
+     * 
+     */
+    $('#message').on('keydown', function (e) {
+      if ((e.which && e.which === 13) || (e.keyCode && e.keyCode === 13)) {
+        var message = $('#message').val();
 
-      var message = $('#message').val();
-      // TODO : 長さチェック
-      socket.emit('send chat', message, function () {
-        // メッセージの送信に成功したらテキストボックスをクリアする
-        $('#message').val('');
-      });
-    });
+        if (message.length == 0) {
+          // なにもしない
+        } else if (message.length > messageLengthLimit) {
+          // TODO : エラー表示
+        } else {
+          socket.emit('send chat', message, function () {
+            // メッセージの送信に成功したらテキストボックスをクリアする
+            $('#message').val('');
+          });
+        }
 
-
-
-
-    // チャットルームへのメンバー追加
-    socket.on('update members', function (members) {
-      $('#members').empty();
-      for (var i = 0; i < members.length; i++) {
-        var html = '<li>' + members[i] + '</li>';
-        $('#members').append(html);
+        return false;
+      } else {
+        return true;
       }
     });
 
-    // TODO : お絵描きチャット部分
-    var startX;
-    var startY;
-    var color;
-    // TODO : widthの初期化は別の場所でやる？
-    var drawWidth = 1;
-    var drawFlag = false;
-    var canvas = $('#mainCanvas').get(0);
-    var context;
-    var buffer = [];
-    var buffering = false;
     // TODO : canvas非対応ブラウザへの対応 ここだけじゃなくてほぼ全体入れる必要あり、
     // というかlobbyの段階ではじくべきだけど、lobbyではcanvas使わない……
     if (canvas.getContext)
@@ -186,6 +219,9 @@
        */
       $('#mainCanvas').mousedown(function (e) {
         console.log('MouseDown');
+
+        if (!canDraw()) return;
+
         drawFlag = true;
         startX = e.pageX - $(this).offset().left;
         startY = e.pageY - $(this).offset().top;
@@ -200,6 +236,9 @@
        */
       $('#mainCanvas').mousemove(function (e) {
         console.log('MouseMove');
+
+        if (!canDraw()) return;
+
         if (drawFlag) {
           var endX = e.pageX - $(this).offset().left;
           var endY = e.pageY - $(this).offset().top;
@@ -245,9 +284,11 @@
         color = $(this).css('background-color');
       });
 
-      $('#clear').on('click', function (e) {
-        e.preventDefault();
-        context.clearRect(0, 0, $('canvas').width(), $('canvas').height());
+      $('td').on('dblclick', function () {
+        if (!canDraw()) return;
+
+        fillRect(color);
+        pushBuffer('fill', null, color, null);
       });
 
       $('#save').on('click', function () {
@@ -268,6 +309,32 @@
       });
 
       /**
+       * 受け取ったお絵かきデータを描画メソッドに振り分ける
+       */
+      function drawData (data) {
+        for (var i = 0; i < data.length; i++) {
+          if (data[i].type == 'fill') {
+            fillRect(data[i].color);
+          } else {
+            for (var j = 0; j < data[i].data.length; j++) {
+              var type  = data[i].type;
+              var width = data[i].width;
+              var color = data[i].color;
+              var d = data[i].data[j];
+    
+              if (type == 'line') {
+                drawLine(d.xs, d.ys, d.xe, d.ye, width, color);
+              } else if (type == 'point') {
+                drawPoint(d.x, d.y, width, color);
+              } else {
+                // TODO : エラー
+              }
+            }
+          }
+        }
+      }
+
+      /**
        * モードと役割から描画可能か判定する
        */
       function canDraw () {
@@ -279,7 +346,6 @@
        */
       function drawLine (startX, startY, endX, endY, width, color) {
         // console.log('DrawLine');
-        if (!canDraw()) return;
 
         context.strokeStyle = color;
         context.lineCap = 'round';
@@ -295,7 +361,6 @@
        */
       function drawPoint (x, y, width, color) {
         // console.log('DrawPoint');
-        if (!canDraw()) return;
 
         context.strokeStyle = color;
         context.fillStyle = color;
@@ -307,59 +372,59 @@
       };
 
       /**
-       *
+       * Canvas 塗りつぶし
+       */
+      function fillRect (color) {
+        // console.log('FillRect');
+
+        context.fillStyle = color;
+        context.beginPath();
+        context.fillRect(0, 0, $('canvas').width(), $('canvas').height());
+        context.stroke();
+      }
+
+      /**
+       * お絵かき情報をbufferに溜める
        */
       function pushBuffer (type, width, color, data) {
-        if (!canDraw()) return;
+        // console.log('PushBuffer');
 
-        if ((type == 'line' || type == 'point') &&
-            buffer.length > 0 &&
-            buffer[buffer.length - 1].type == type &&
-            buffer[buffer.length - 1].width == width &&
-            buffer[buffer.length - 1].color == color) {
-          buffer[buffer.length - 1].data.push(data);
-        } else {
-          buffer.push({ type: type, width: width, color: color, data: [data] });
+        if (type == 'line' || type == 'point') {
+          if (buffer.length > 0 &&
+              buffer[buffer.length - 1].type == type &&
+              buffer[buffer.length - 1].width == width &&
+              buffer[buffer.length - 1].color == color) {
+            buffer[buffer.length - 1].data.push(data);
+          } else {
+            buffer.push({ type: type, width: width, color: color, data: [data] });
+          }
+        } else if (type == 'fill') {
+          // 塗りつぶしの場合は遅延なしで送信する
+          buffer.length = 0;
+          buffer.push({ type: type, color: color});
+          clearTimeout(timer);
+          sendImage();
+          return;
         }
 
-        // TODO : 特定のイベント(fill, clear)の場合はbuffer関係なしにすぐ送る
         if (!buffering) {
-          console.log('buffering');
+          // console.log('buffering');
+
           buffering = true;
-          // TODO : 送信間隔を変数化
-          setTimeout(function() { sendImage() }, 500);
+          timer = setTimeout(function () { sendImage() }, setTimeoutMillisecond);
         }
       };
 
       /**
-       * 
+       * bufferを送信する
        */
       function sendImage () {
-        console.log('send image');
+        // console.log('send image');
+
         socket.emit('send image', buffer);
-        buffer = [];
+        buffer.length = 0;
         buffering = false;
       };
     }
-  }); // document.ready()ここまで
-
-  function prependMessage (message) {
-    var html = '<div class="message" id="' + message.id + '">'
-      + '<p class="postdate pull-right">' + message.date + '</p>'
-      + '<p class="author">' + message.from + '：</p>'
-      + '<p class="comment">' + message.body + '</p>'
-      + '</div>';
-    $('#messages').prepend(html);
-  }
-
-  function updateMessage () {
-    $('#messages').empty();
-    var keys = Object.keys(messageLogs);
-    keys.sort();
-    keys.forEach(function (key) {
-      prependMessage(messageLogs[key]);
-    });
-  }
+  });
 })();
-//}).apply(this);
-
