@@ -35,6 +35,6 @@
 
     return Dictionary;
   })();
-  
+
   exports.Dictionary = Dictionary;
 })();

@@ -31,6 +31,7 @@ if ('development' == app.get('env')) {
 // TODO : route 変数化 
 app.get('/catchhogehoge', routes.index);
 app.post('/catchhogehoge/gameroom', routes.room);
+// TODO : 末尾の / なしは / ありに redirect させたい
 
 var server = http.createServer(app);
 server.listen(app.get('port'), function(){

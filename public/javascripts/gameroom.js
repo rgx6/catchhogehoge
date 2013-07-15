@@ -37,9 +37,11 @@
     // お絵かきデータ送信用のタイマーがセットされているか
     var buffering = false;
 
-    // TODO : 接続先を変数化
     // serverに接続
-    socket = io.connect('http://localhost');
+    // var host = 'http://rgx.c.node-ninja.com';
+    // var host = 'http://rgx.sakura.ne.jp';
+    var host = 'http://localhost';
+    socket = io.connect(host);
 
     // TODO : 部屋名とか設定（認証完了後か？）
 
@@ -51,24 +53,35 @@
      * 接続できたら画面を初期化するための情報を要求する
      */
     socket.on('connected', function () {
-      console.log('connected');
+      // console.log('connected');
 
-      // 認証情報を一緒に送る
+      // 認証情報を送る
       socket.emit('init room', {
         roomName: credentials.roomName,
         userName: credentials.userName,
         token:    credentials.token
+      }, function (data) {
+        if (data.result == 'bad param') {
+          // TODO : 再接続時もここに来るはずなのでメッセージ内容を検討
+          alert('不正なパラメータです');
+          redirectToLobby();
+        } else if (data.result == 'full') {
+          alert('部屋が満員です');
+          redirectToLobby();
+        } else if (data.result == 'ok') {
+          mode = data.mode;
+          if (mode != 'chat') {
+            $('#ready').attr('disabled', true);
+          }
+          if (mode == 'turn') {
+            $('#theme').empty();
+            $('#theme').append('お題 ： ' + data.theme);
+          }
+        } else {
+          alert('予期しないエラーです');
+          redirectToLobby();
+        }
       });
-    });
-
-    /**
-     * 認証情報に不備があり入室できなかった
-     */
-    socket.on('enter room ng', function () {
-      console.log('enter room ng');
-      // TODO : このメッセージを送る処理を書く
-      // TODO : エラー表示
-      // TODO : lobby に redirect
     });
 
     /**
@@ -77,7 +90,7 @@
     socket.on('push chat', function (message) {
       // console.log('push chat');
 
-      $('#messages').prepend(message.userName + ' : ' + message.message + '<br />');
+      $('#messages').prepend(message.userName + ' ： ' + message.message + '<br />');
     });
 
     /**
@@ -90,13 +103,13 @@
     });
 
     /**
-     * お絵かきデータの差分を受取る
+     * お絵かきデータの差分を受け取る
      */
     socket.on('push image', function (data) {
-      console.log('push image');
+      // console.log('push image');
 
       // 自分が描いたデータは無視する
-      // TODO : 通信量削減のためserver側で制御したい 
+      // TODO : server側で対応すればこの判定は不要
       if (data.userName == credentials.userName) {
         return;
       }
@@ -108,6 +121,8 @@
      * 途中入室時にお絵かきデータをまとめて受け取る
      */
     socket.on('push image first', function (data) {
+      // console.log('push image first');
+
       for (var i = 0; i < data.length; i++) {
         drawData(data[i]);
       }
@@ -117,15 +132,17 @@
      * プレイヤー情報の表示を更新する
      */
     socket.on('update member', function (players) {
-      console.log('update member');
+      // console.log('update member');
 
+      // TODO : 表示内容とデザインを検討
       $('#players').empty();
       var html = '';
       for (var i = 0; i < players.length; i++) {
         if (players[i] == undefined) continue;
         html += '<tr><td>' + players[i].name + '</td></tr>';
-        html += '<tr><td>' + players[i].score + '</td></tr>';
+        html += '<tr><td>Score : ' + players[i].score + '</td></tr>';
         html += '<tr><td>' + (players[i].isReady ? '準備完了' : '準備中') + '</td></tr>';
+        html += '<tr><td>' + (players[i].isPainter ? '描く人' : '') + '</td></tr>';
       }
       $('#players').append(html);
     });
@@ -134,7 +151,7 @@
      * canvasをクリアする
      */
     socket.on('clear canvas', function () {
-      console.log('clear canvas');
+      // console.log('clear canvas');
 
       fillRect('Rgb(255, 255, 255)');
     });
@@ -143,7 +160,7 @@
      * 残り時間の表示を更新
      */
     socket.on('send time left', function (timeLeft) {
-      console.log('send time left');
+      // console.log('send time left');
 
       $('#time').empty();
       $('#time').append('残り時間 ' + timeLeft + ' 秒');
@@ -153,7 +170,7 @@
      * お題とヒントを表示する
      */
     socket.on('send theme', function (theme) {
-      console.log('send theme');
+      // console.log('send theme');
 
       $('#theme').empty();
       $('#theme').append('お題 ： ' + theme);
@@ -163,7 +180,7 @@
      * painterかどうかを設定する
      */
     socket.on('send is painter', function (data) {
-      console.log('send is painter');
+      // console.log('send is painter');
 
       isPainter = data;
     });
@@ -172,11 +189,12 @@
      * モード変更処理
      */
     socket.on('change mode', function (data) {
-      console.log('change mode ' + data);
+      // console.log('change mode ' + data);
 
       mode = data;
       if (mode == 'chat') {
         ('#time').empty();
+        $('#ready').attr('disabled', false);
       }
     });
 
@@ -185,7 +203,7 @@
     //------------------------------
 
     /**
-     * 
+     * メッセージ入力欄でenter
      */
     $('#message').on('keydown', function (e) {
       if ((e.which && e.which === 13) || (e.keyCode && e.keyCode === 13)) {
@@ -195,6 +213,7 @@
           // なにもしない
         } else if (message.length > messageLengthLimit) {
           // TODO : エラー表示
+          // TODO : メッセージ入力欄の下に出てくる候補が邪魔
         } else {
           socket.emit('send chat', message, function () {
             // メッセージの送信に成功したらテキストボックスをクリアする
@@ -208,18 +227,33 @@
       }
     });
 
-    // TODO : canvas非対応ブラウザへの対応 ここだけじゃなくてほぼ全体入れる必要あり、
-    // というかlobbyの段階ではじくべきだけど、lobbyではcanvas使わない……
-    if (canvas.getContext)
-    {
+    /**
+     * 準備完了ボタン クリックイベント
+     */
+    $('#ready').on('click', function () {
+      // console.log('#ready click');
+
+      socket.emit('ready', function () {
+        // 準備完了ボタンを無効化
+        $('#ready').attr('disabled', true);
+      });
+    });
+
+    //------------------------------
+    // canvas関連処理定義
+    //------------------------------
+
+    if (!canvas.getContext) {
+      alert('お使いのブラウザはCanvasに対応していないためプレイできません');
+      redirectToLobby();
+    } else {
       context = canvas.getContext('2d');
 
       /**
        * Canvas MouseDownイベント
        */
       $('#mainCanvas').mousedown(function (e) {
-        console.log('MouseDown');
-
+        // console.log('MouseDown');
         if (!canDraw()) return;
 
         drawFlag = true;
@@ -235,8 +269,7 @@
        * Canvas MouseMoveイベント
        */
       $('#mainCanvas').mousemove(function (e) {
-        console.log('MouseMove');
-
+        // console.log('MouseMove');
         if (!canDraw()) return;
 
         if (drawFlag) {
@@ -253,7 +286,8 @@
        * Canvas MouseUpイベント
        */
       $('#mainCanvas').mouseup(function () {
-        console.log('MouseUp');
+        // console.log('MouseUp');
+
         drawFlag = false;
       });
   
@@ -261,7 +295,8 @@
        * Canvas MouseLeaveイベント
        */
       $('#mainCanvas').mouseleave(function () {
-        console.log('MouseLeave');
+        // console.log('MouseLeave');
+
         // TODO : クリックしたままなら描画を続ける機能がほしい
         drawFlag = false;
       });
@@ -280,10 +315,18 @@
         drawWidth = 15;
       });
 
+      /**
+       * パレットをクリックで色選択
+       */
       $('td').on('click', function () {
+        if (!canDraw()) return;
+
         color = $(this).css('background-color');
       });
 
+      /**
+       * パレットをダブルクリックで塗りつぶし
+       */
       $('td').on('dblclick', function () {
         if (!canDraw()) return;
 
@@ -291,21 +334,15 @@
         pushBuffer('fill', null, color, null);
       });
 
+      /**
+       * 保存ボタンをクリック
+       */
       $('#save').on('click', function () {
+        // console.log('#save click');
+
         var d = canvas.toDataURL('image/png');
         d = d.replace('image/png', 'image/octet-stream');
         window.open(d, 'save');
-      });
-
-      /**
-       * 準備完了ボタン クリックイベント
-       */
-      $('#ready').on('click', function () {
-        console.log('#ready click');
-  
-        socket.emit('ready', function () {
-          // TODO : 準備完了／キャンセルの管理
-        });
       });
 
       /**
@@ -327,7 +364,7 @@
               } else if (type == 'point') {
                 drawPoint(d.x, d.y, width, color);
               } else {
-                // TODO : エラー
+                console.log('不正な値です type:' + type);
               }
             }
           }
@@ -425,6 +462,14 @@
         buffer.length = 0;
         buffering = false;
       };
+    }
+    
+    //------------------------------
+    // その他メソッド定義
+    //------------------------------
+
+    function redirectToLobby () {
+      location.href = '/catchhogehoge/';
     }
   });
 })();

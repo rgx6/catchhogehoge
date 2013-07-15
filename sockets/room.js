@@ -251,6 +251,7 @@
                               'けいさんじゃく','ばーこーど','ぱいぷいす','とらばさみ','むすびめ','わごん'
                             ]);
       this.theme          = null;
+      this.lastHint       = null;
       this.tokens         = {};
       this.users          = [];
       this.painterIndex   = 0;
@@ -387,6 +388,7 @@
         this.imagelog.push(data);
       }
 
+      // TODO : 通信量削減のため描いた人には送らないようにしたい 
       sockets.to(this.name).emit('push image', {
         userName : userName,
         data : data
@@ -405,15 +407,16 @@
      * お題とヒントを送る
      */
     Room.prototype.sendTheme = function (level) {
-      this.log('send theme');
+      // this.log('send theme');
 
+      this.lastHint = Dictionary.getHint(this.theme, level);
       for (var i = 0; i < this.users.length; i++) {
         if (i == this.painterIndex) {
           if (level == 0) {
             this.users[i].socket.emit('send theme', this.theme);
           }
         } else {
-          this.users[i].socket.emit('send theme', Dictionary.getHint(this.theme, level));
+          this.users[i].socket.emit('send theme', this.lastHint);
         }
       }
     }
@@ -442,9 +445,9 @@
       switch(this.mode) {
         // お絵描きチャットモード
         case 'chat':
-          // do nothing
+          // なにもしない
           break;
-  
+
         // 準備完了 ゲーム開始カウントダウン
         case 'ready':
           this.timeLeft--;
@@ -455,7 +458,7 @@
             this.sendTimeLeft();
           }
           break;
-  
+
         // ターン中
         case 'turn':
           this.timeLeft--;
@@ -473,7 +476,7 @@
             }
           }
           break;
-  
+
         // ターンとターンの間
         case 'interval':
           this.timeLeft--;
@@ -484,7 +487,7 @@
             this.sendTimeLeft();
           }
           break;
-  
+
         // 該当なし ありえないケース
         default:
           // TODO : exceptionにする？
@@ -497,27 +500,31 @@
      * ゲーム開始時の初期化処理
      */
     Room.prototype.initGame = function () {
-      this.log('init game');
+      // this.log('init game');
 
       this.round = 1;
       this.painterIndex = 0;
-      this.pushSystemMessage('game start');
+      this.lastHint = null;;
+      this.pushSystemMessage('ゲームを開始します');
     }
 
     /**
      * ターン開始処理
      */
     Room.prototype.startTurn = function () {
-      this.log('start turn');
+      // this.log('start turn');
 
       this.mode = 'turn';
       this.timeLeft = turnSecond;
       this.theme = this.dictionary.getNextWord();
       // DEBUG用
       // this.pushSystemMessage('debug お題:' + this.theme);
-      sockets.to(this.name).emit('clear canvas');
+      // this.log('お題:' + this.theme);
       sockets.to(this.name).emit('change mode', 'turn');
-      this.pushSystemMessage('startTurn');
+      sockets.to(this.name).emit('clear canvas');
+      this.imagelog.length = 0;
+      // TODO : 何ターン目／ラウンドも表示
+      this.pushSystemMessage('ターンを開始します');
       this.sendIsPainter();
       this.sendTimeLeft();
       this.sendTheme(0);
@@ -527,10 +534,10 @@
      * ターン終了処理
      */
     Room.prototype.endTurn = function () {
-      this.log('end turn');
+      // this.log('end turn');
 
       if (this.timeLeft == 0) {
-        this.pushSystemMessage('時間切れです。');
+        this.pushSystemMessage('時間切れです');
       }
 
       if (this.painterIndex == this.users.length - 1) {
@@ -547,6 +554,7 @@
               winnerIndex = i;
             }
           }
+          // TODO : 表示検討
           this.pushSystemMessage('win ' + this.users[winnerIndex].name + ' score ' + this.users[winnerIndex].score);
           this.pushSystemMessage('game end');
           for (var i = 0; i < this.users.length; i++) {

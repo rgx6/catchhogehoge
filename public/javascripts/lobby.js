@@ -5,8 +5,9 @@
     console.log('ready');
 
     // サーバに接続
-    var host = 'http://rgx.c.node-ninja.com/';
-    // var host = 'http://localhost';
+    // var host = 'http://rgx.c.node-ninja.com';
+    // var host = 'http://rgx.sakura.ne.jp';
+    var host = 'http://localhost';
     socket = io.connect(host);
 
     //------------------------------
