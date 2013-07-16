@@ -381,7 +381,7 @@ exports.onConnection = function (client) {
     rooms[roomName].playerExit(userName);
 
     // playerがいなくなったらroomも削除する
-    if (room.users.length == 0) {
+    if (rooms[roomName].users.length == 0) {
       delete rooms[roomName];
     }
 

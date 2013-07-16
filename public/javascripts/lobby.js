@@ -58,7 +58,7 @@
         } else if (data.result == 'ok') {
           $.form({
             type: 'post',
-            url:  'gameroom',
+            url:  'gameroom/',
             data: {
               roomName: credentials.roomName,
               userName: credentials.userName,

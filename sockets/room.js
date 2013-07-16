@@ -650,6 +650,7 @@
               // painterより後のプレイヤーが退室してもゲーム進行には影響しない
             }
           }
+
           this.users.splice(i, 1);
           break;
         }
@@ -667,7 +668,7 @@
      * log出力メソッド
      */
     Room.prototype.log = function (message) {
-      console.log('[' + this.name + '] ' + message);
+      console.log('[room:' + this.name + '] ' + message);
     }
 
     // TODO : app.jsでも使ってるので共通化する
