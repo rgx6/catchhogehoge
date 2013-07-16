@@ -4,11 +4,16 @@
 
 var crypto = require('crypto');
 
-exports.index = function(req, res){
+// TODO : title
+exports.index = function (req, res) {
   res.render('index', { title: 'catch hoge hoge' });
 };
 
-exports.room = function(req, res){
+exports.redirectToIndex = function (req, res) {
+  res.redirect('/catchhogehoge/');
+};
+
+exports.room = function (req, res) {
   var roomName = req.body.roomName || '';
   var userName = req.body.userName || '';
   var token    = req.body.token || '';

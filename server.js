@@ -13,9 +13,11 @@ var chatsockets = require('./sockets/app.js');
 var app = express();
 
 // all environments
+// TODO : パラメータで再接続不可にする
 app.set('port', process.env.PORT || 3000);
 app.set('views', __dirname + '/views');
 app.set('view engine', 'jade');
+app.enable('strict routing');
 app.use(express.favicon());
 app.use(express.logger('dev'));
 app.use(express.bodyParser());
@@ -28,10 +30,10 @@ if ('development' == app.get('env')) {
   app.use(express.errorHandler());
 }
 
-// TODO : route 変数化 
-app.get('/catchhogehoge', routes.index);
-app.post('/catchhogehoge/gameroom', routes.room);
-// TODO : 末尾の / なしは / ありに redirect させたい
+// TODO : 変数化 
+app.get('/catchhogehoge/', routes.index);
+app.get('/catchhogehoge', routes.redirectToIndex);
+app.post('/catchhogehoge/gameroom/', routes.room);
 
 var server = http.createServer(app);
 server.listen(app.get('port'), function(){

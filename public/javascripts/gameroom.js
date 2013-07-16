@@ -89,7 +89,7 @@
      */
     socket.on('push chat', function (message) {
       // console.log('push chat');
-
+      // TODO : メッセージが長すぎると枠からはみ出る sysmessageも同様 スクロールバーも付けたい
       $('#messages').prepend(message.userName + ' ： ' + message.message + '<br />');
     });
 

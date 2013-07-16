@@ -3,7 +3,8 @@
 // TODO : init以外はroomとuserを必ずチェック。不正なら処理しない(&キック?)
 // TODO : playerの認証をroomNameとplayerNameから、部屋が生成される度に変わるワンタイムのトークンに変える？
 // TODO : 未使用トークンの（定期的な？）無効化処理をどこかでやる
-    
+// TODO : エラーログをファイルに出力
+
 // TODO : 別のファイルに切り出して共有
 var roomNameLengthLimit = 20;
 var commentLengthLimit = 40;
@@ -233,7 +234,7 @@ exports.onConnection = function (client) {
       callback({ result: 'ok', mode: room.mode });
     }
 
-    room.pushSystemMessage(data.userName + ' さんが入室しました。');
+    room.pushSystemMessage(data.userName + 'さんが入室しました');
     room.updateMember();
     updateLobby();
   });
@@ -373,23 +374,17 @@ exports.onConnection = function (client) {
     });
 
     // lobbyの場合 後始末不要
-    if (roomName == null || userName == null)
-      return;
+    if (roomName == null || userName == null) return;
 
     console.log('disconnect ' + roomName + ' ' + userName);
 
-    var room = rooms[roomName];
-    room.playerExit(userName);
+    rooms[roomName].playerExit(userName);
 
     // playerがいなくなったらroomも削除する
-    // TODO : 1人になった時点でゲームを終了させるか？painterの引き継ぎも合わせて考える
     if (room.users.length == 0) {
       delete rooms[roomName];
-    } else {
-      room.pushSystemMessage(userName + ' さんが退室しました。');
     }
 
-    room.updateMember();
     updateLobby();
   });
 };
