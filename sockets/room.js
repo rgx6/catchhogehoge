@@ -347,7 +347,7 @@
           sockets.to(this.name).emit('push chat', { userName: escapeHTML(playerName), message: escapeHTML(message) });
 
           var player = this.users[playerIndex];
-          var painter = this.users[painterIndex];
+          var painter = this.users[this.painterIndex];
           player.score += this.timeLeft;
           painter.score += this.timeLeft;
           this.sendTheme(9);
@@ -384,12 +384,12 @@
         this.imagelog.push(data);
       }
 
-      // TODO : 通信量削減のため描いた人には送らないようにしたい 
-      sockets.to(this.name).emit('push image', {
-        userName : userName,
-        data : data
-    });
-
+      // 通信量削減のため描いた人には送らない
+      for (var i = 0; i < this.users.length; i++) {
+        if (this.users[i].name != userName) {
+          this.users[i].socket.emit('push image', data);
+        }
+      }
     }
 
     /**
@@ -558,8 +558,7 @@
           }
 
           if (maxScore == 0) {
-            // TODO : メッセージ検討
-            this.pushSystemMessage('優勝はいません');
+            this.pushSystemMessage('もっとがんばりましょう');
           } else if (winnerIndex.length == 1) {
             this.pushSystemMessage('優勝は' + this.users[winnerIndex[0]].name + 'さんでした');
           } else {
@@ -580,11 +579,13 @@
           this.pushSystemMessage('ラウンド' + this.round + '/' + this.roundMax + 'が終了しました');
           this.round += 1;
           this.painterIndex = 0;
+          this.pushSystemMessage('次に描く人は' + this.users[this.painterIndex].name + 'さんです');
           this.changeModeInterval();
         }
       } else {
         // 次のturnに
         this.painterIndex += 1;
+        this.pushSystemMessage('次に描く人は' + this.users[this.painterIndex].name + 'さんです');
         this.changeModeInterval();
       }
 
@@ -632,36 +633,55 @@
     Room.prototype.playerExit = function (userName) {
       this.log('player exit ' + userName);
 
-      // userを削除
-      for (var i = 0; i < this.users.length; i++) {
+      var exitPlayerIndex;
+      for (exitPlayerIndex = 0; exitPlayerIndex < this.users.length; exitPlayerIndex++) {
         // TODO : 一致するユーザーがいない可能性はあるか？
-        if (this.users[i].name == userName) {
-          // ゲーム中のみゲーム進行を調整する
-          if (this.mode == 'turn' || this.mode == 'interval') {
-            if (i < this.painterIndex) {
-              // painterより前のプレイヤーが退室
-              // usersのindexが1つ前にずれるためpainterIndexも1つ減らす
-              this.painterIndex -= 1;
-            } else if (i == this.painterIndex) {
-              // TODO : 実装
-              // turn == ターン中断、intervalに移行して次のプレイヤーにpainterを引き継ぐ
-              // inte == ラウンド、ゲーム終了のチェックが必要
-            } else {
-              // painterより後のプレイヤーが退室してもゲーム進行には影響しない
-            }
-          }
-
-          this.users.splice(i, 1);
+        if (this.users[exitPlayerIndex].name == userName) {
           break;
         }
       }
 
-      // playerが残っていればroomにuser情報を通知
-      if (this.users.length > 0) {
-        this.pushSystemMessage(userName + 'さんが退室しました');
-        this.updateMember();
-        // TODO : 1人になった時点でゲームを終了させるか？painterの引き継ぎも合わせて考える
+      // roomからプレイヤーを削除
+      this.users.splice(exitPlayerIndex, 1);
+
+      // 誰もいない
+      if (this.users.length == 0) {
+        return;
       }
+
+      this.pushSystemMessage(userName + 'さんが退室しました');
+
+      // 残りプレイヤーが1人になったら強制的にゲーム終了
+      if (this.users.length == 1 && this.mode != 'chat') {
+        this.pushSystemMessage('1人になってしまいました');
+        this.pushSystemMessage('ゲームを続行できないのでゲームを終了します');
+        this.users[0].isReady = false;
+        this.changeModeChat();
+        this.updateMember();
+        return;
+      }
+
+      // ゲーム中ならゲーム進行を調整する
+      if (this.mode == 'turn' || this.mode == 'interval') {
+        if (exitPlayerIndex < this.painterIndex) {
+          // painterより前のプレイヤーが退室
+          // usersのindexが1つ前にずれるためpainterIndexも1つ減らす
+          this.painterIndex -= 1;
+        } else if (exitPlayerIndex == this.painterIndex) {
+          this.painterIndex -= 1;
+          if (this.mode == 'turn') {
+            this.pushSystemMessage('描く人が退室したのでターンを終了します');
+          } else {
+            this.pushSystemMessage('次に描く予定の人が退室しました');
+            this.pushSystemMessage('次に描く人は' + this.users[this.painterIndex].name + 'さんです');
+          }
+          this.endTurn();
+        } else {
+          // painterより後のプレイヤーが退室してもゲーム進行には影響しない
+        }
+      }
+
+      this.updateMember();
     }
 
     /**

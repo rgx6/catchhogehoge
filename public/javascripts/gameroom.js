@@ -38,9 +38,9 @@
     var buffering = false;
 
     // serverに接続
-    // var host = 'http://rgx.c.node-ninja.com';
-    // var host = 'http://rgx.sakura.ne.jp';
-    var host = 'http://localhost';
+    // var host = 'http://rgx.c.node-ninja.com/';
+    // var host = 'http://rgx.sakura.ne.jp/';
+    var host = 'http://localhost/';
     socket = io.connect(host);
 
     // TODO : 部屋名とか設定（認証完了後か？）
@@ -63,7 +63,9 @@
       }, function (data) {
         if (data.result == 'bad param') {
           // TODO : 再接続時もここに来るはずなのでメッセージ内容を検討
+          // 通信が切断されたか不正なパラメータです、とかかな？
           alert('不正なパラメータです');
+          // TODO : ここのredirectを無効化して例外発生条件を検証
           redirectToLobby();
         } else if (data.result == 'full') {
           alert('部屋が満員です');
@@ -108,13 +110,7 @@
     socket.on('push image', function (data) {
       // console.log('push image');
 
-      // 自分が描いたデータは無視する
-      // TODO : server側で対応すればこの判定は不要
-      if (data.userName == credentials.userName) {
-        return;
-      }
-
-      drawData(data.data);
+      drawData(data);
     });
 
     /**
@@ -193,7 +189,8 @@
 
       mode = data;
       if (mode == 'chat') {
-        ('#time').empty();
+        $('#time').empty();
+        $('#theme').empty();
         $('#ready').attr('disabled', false);
       }
     });

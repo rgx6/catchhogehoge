@@ -4,10 +4,11 @@
   $(document).ready(function () {
     console.log('ready');
 
+    // TODO : 外部ファイルから読み込み？
     // サーバに接続
-    // var host = 'http://rgx.c.node-ninja.com';
-    // var host = 'http://rgx.sakura.ne.jp';
-    var host = 'http://localhost';
+    // var host = 'http://rgx.c.node-ninja.com/';
+    // var host = 'http://rgx.sakura.ne.jp/';
+    var host = 'http://localhost/';
     socket = io.connect(host);
 
     //------------------------------
@@ -102,7 +103,7 @@
         } else if (data.result == 'ok') {
           $.form({
             type: 'post',
-            url:  'gameroom',
+            url:  'gameroom/',
             data: {
               roomName: credentials.roomName,
               userName: credentials.userName,
