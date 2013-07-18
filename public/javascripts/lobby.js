@@ -2,13 +2,13 @@
   var socket;
 
   $(document).ready(function () {
-    console.log('ready');
+    // console.log('ready');
 
     // TODO : 外部ファイルから読み込み？
     // サーバに接続
-    // var host = 'http://rgx.c.node-ninja.com/';
+    var host = 'http://rgx.c.node-ninja.com/';
     // var host = 'http://rgx.sakura.ne.jp/';
-    var host = 'http://localhost/';
+    // var host = 'http://localhost/';
     socket = io.connect(host);
 
     //------------------------------
@@ -19,7 +19,7 @@
      * 接続できたら画面を初期化するための情報を要求する
      */
     socket.on('connected', function () {
-      console.log('connected');
+      // console.log('connected');
 
       socket.emit('init lobby')
     });
@@ -28,7 +28,7 @@
      * 部屋情報を受け取って表示を更新する
      */
     socket.on('update lobby', function (rooms) {
-      console.log('update lobby');
+      // console.log('update lobby');
 
       updateRoomsInfo(rooms);
     });
@@ -115,6 +115,31 @@
           alert('予期しないエラーです');
         }
       });
+    });
+
+    /**
+     * バグ報告等
+     */
+    $('#bug').on('keydown', function (e) {
+      if ((e.which && e.which === 13) || (e.keyCode && e.keyCode === 13)) {
+        var message = $('#bug').val();
+
+        if (message.length == 0) {
+          // なにもしない
+        } else if (message.length > 500) {
+          // TODO : エラー表示
+          // TODO : メッセージ入力欄の下に出てくる候補が邪魔
+        } else {
+          socket.emit('send bug', { message: message, from: 'lobby' }, function () {
+            // メッセージの送信に成功したらテキストボックスをクリアする
+            $('#bug').val('');
+          });
+        }
+
+        return false;
+      } else {
+        return true;
+      }
     });
 
     //------------------------------

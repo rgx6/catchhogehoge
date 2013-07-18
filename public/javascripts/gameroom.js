@@ -38,9 +38,9 @@
     var buffering = false;
 
     // serverに接続
-    // var host = 'http://rgx.c.node-ninja.com/';
+    var host = 'http://rgx.c.node-ninja.com/';
     // var host = 'http://rgx.sakura.ne.jp/';
-    var host = 'http://localhost/';
+    // var host = 'http://localhost/';
     socket = io.connect(host);
 
     // TODO : 部屋名とか設定（認証完了後か？）
@@ -234,6 +234,31 @@
         // 準備完了ボタンを無効化
         $('#ready').attr('disabled', true);
       });
+    });
+
+    /**
+     * バグ報告等
+     */
+    $('#bug').on('keydown', function (e) {
+      if ((e.which && e.which === 13) || (e.keyCode && e.keyCode === 13)) {
+        var message = $('#bug').val();
+
+        if (message.length == 0) {
+          // なにもしない
+        } else if (message.length > 500) {
+          // TODO : エラー表示
+          // TODO : メッセージ入力欄の下に出てくる候補が邪魔
+        } else {
+          socket.emit('send bug', { message: message, from: 'room' }, function () {
+            // メッセージの送信に成功したらテキストボックスをクリアする
+            $('#bug').val('');
+          });
+        }
+
+        return false;
+      } else {
+        return true;
+      }
     });
 
     //------------------------------

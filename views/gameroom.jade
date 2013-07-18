@@ -11,7 +11,7 @@ block content
   .navbar.navbar-inverse.navbar-fixed-top
     .navbar-inner
       .container
-        a.brand キ○○○○○○○○グ
+        a.brand キャッチ○○○○○○（開発中）
         ul.nav
           li: a 部屋名：#{roomName}
           li: a(href='/catchhogehoge/') 退室する
@@ -61,6 +61,12 @@ block content
         #sysmessages.well
       .span6
         #messages.well
+
+    .row
+      .span9
+        h4 ご意見、ご要望、バグ報告等はこちらへお願いします。
+        form
+          input#bug.span9(type='text', maxlength=500, placeholder='メッセージを入力...')
 
     .modal-footer
       a(href='/catchhogehoge/') 退室する

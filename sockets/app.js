@@ -23,8 +23,8 @@ var previousTime = new Date();
 var roomTimer = setInterval(function() {
   var newTime = new Date();
   // TODO : DEBUG
-  if (Math.abs(newTime - previousTime - 1000) >= 10) {
-    console.log('call interval ' + (newTime - previousTime) + ' ' + newTime.toLocaleTimeString());
+  if (Math.abs(newTime - previousTime - 1000) >= 50) {
+    console.log('[delay]' + (newTime - previousTime));
   }
   // roomの時間経過タイマー処理を呼び出す
   timerProc();
@@ -79,7 +79,7 @@ exports.onConnection = function (client) {
         data.userName.length > playerNameLengthLimit ||
         (data.comment != null && data.comment.length > commentLengthLimit) ||
         (data.password != null && data.password.length > passwordLengthLimit)) {
-      // console.log('create room bad param');
+      console.log('[create][bad param]');
 
       fn({ result: 'bad param' });
       return;
@@ -111,6 +111,8 @@ exports.onConnection = function (client) {
   client.on('enter room', function (data, fn) {
     // console.log('enter room : ' + data.roomName);
 
+    // TODO : 処理をRoomクラスに移動
+
     // パラメータチェック
     if (data.roomName == null ||
         data.roomName.length == 0 ||
@@ -119,7 +121,7 @@ exports.onConnection = function (client) {
         data.userName.length == 0 ||
         data.userName.length > playerNameLengthLimit ||
         (data.password != null && data.password.length > passwordLengthLimit)) {
-      // console.log('enter room bad param');
+      console.log('[enter][bad param]');
 
       fn({ result: 'bad param' });
       return;
@@ -127,7 +129,7 @@ exports.onConnection = function (client) {
 
     // 部屋の存在チェック
     if (rooms[data.roomName] == null) {
-      /// console.log('enter room not exist');
+      // console.log('[enter][not exist]');
 
       fn({ result: 'not exist' });
       return;
@@ -137,7 +139,7 @@ exports.onConnection = function (client) {
 
     // パスワードチェック
     if (room.password != data.password) {
-      // console.log('enter room password ng');
+      // console.log('[enter][password ng]');
 
       fn({ result: 'password ng' });
       return;
@@ -145,7 +147,7 @@ exports.onConnection = function (client) {
 
     // 部屋定員チェック
     if (room.isFull()) {
-      // console.log('enter room full');
+      // console.log('[enter][full]');
 
       fn({ result: 'full' });
       return;
@@ -154,7 +156,7 @@ exports.onConnection = function (client) {
     // 名前重複チェック
     for (var i = 0; i < room.users.length; i++) {
       if (room.users[i].name == data.userName) {
-        // console.log('enter room name exist');
+        // console.log('[enter][name exist]');
 
         fn({ result: 'name exist' });
         return;
@@ -196,9 +198,13 @@ exports.onConnection = function (client) {
       return;
     }
 
+    // TODO : 処理をRoomクラスに移す
+
     // 認証成功
 
     var room = rooms[data.roomName];
+
+    room.log('[enter]' + data.userName);
 
     // 認証token削除
     delete room.tokens[data.userName];
@@ -234,7 +240,7 @@ exports.onConnection = function (client) {
       callback({ result: 'ok', mode: room.mode });
     }
 
-    room.pushSystemMessage(data.userName + 'さんが入室しました');
+    room.pushSystemMessage(data.userName + ' さんが入室しました');
     room.updateMember();
     updateLobby();
   });
@@ -243,7 +249,7 @@ exports.onConnection = function (client) {
    * chat の発言を処理する
    */
   client.on('send chat', function(message, fn) {
-    console.log('send chat');
+    // console.log('send chat');
 
     // TODO : ↓get 取得できなくてもエラーにならない？
     // 部屋名とプレイヤー名を socket から取り出す
@@ -271,6 +277,7 @@ exports.onConnection = function (client) {
 
     room.procMessage(userName, message);
     // callbackで成功を通知
+    // TODO : callbackの名前変える？
     fn();
   });
 
@@ -337,19 +344,17 @@ exports.onConnection = function (client) {
 
     room.updateMember();
 
-    // TODO : readyチェック メソッドにわけたい
-    // TODO : 毎回走査するのは面倒だからreadyのカウンタでもつくるか？
-    // TODO : 人数制限の値を2にするか3にするか？
-    if (room.users.length >= 2) {
-      var i;
-      for ( i = 0; i < room.users.length; i++) {
-        if (!room.users[i].isReady)
-          break;
-      }
-      if (i == room.users.length) {
-        room.changeModeReady();
-      }
+    if (room.users.length >= 2 && room.isReady()) {
+      room.changeModeReady();
     }
+  });
+
+  /**
+   * バグ報告受付
+   */
+  client.on('send bug', function (message, callback) {
+    console.log('[bug]' + '[' + message.from + ']' + message.message);
+    callback();
   });
 
   // TODO : ↓見直し
@@ -358,7 +363,7 @@ exports.onConnection = function (client) {
    * socket切断時の後始末
    */
   client.on('disconnect', function() {
-    console.log('disconnect');
+    // console.log('disconnect');
 
     var roomName;
     client.get('roomName', function(err, _roomName) {
@@ -376,7 +381,7 @@ exports.onConnection = function (client) {
     // lobbyの場合 後始末不要
     if (roomName == null || userName == null) return;
 
-    console.log('disconnect ' + roomName + ' ' + userName);
+    console.log('[disconnect]' + '[room:' + roomName + '][player:' + userName + ']');
 
     rooms[roomName].playerExit(userName);
 
@@ -397,7 +402,7 @@ exports.onConnection = function (client) {
  * client送信用のroom情報を取得する
  */
 function getRoomsInfo() {
-  console.log('get rooms info');
+  // console.log('get rooms info');
 
   var roomsInfo = [];
   var keys = Object.keys(rooms);
@@ -420,11 +425,11 @@ function getRoomsInfo() {
  */
 function updateLobby(client) {
   if (client == null) {
-    console.log('update lobby broad cast');
+    // console.log('update lobby broad cast');
     // ブロードキャスト
     sockets.to('lobby').emit('update lobby', getRoomsInfo());
   } else {
-    console.log('update lobby');
+    // console.log('update lobby');
     // 要求ユーザーのみ
     client.emit('update lobby', getRoomsInfo());
   }
@@ -436,31 +441,3 @@ function updateLobby(client) {
 function escapeHTML (str) {
   return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
-
-// TODO : 見直し
-// 指定したroomIdに属するクライアントすべてに対しイベントを送信する
-function emitToRoom(roomId, event, data, fn) {
-  if (socketsOf[roomId] == null) {
-    return;
-  }
-  var sockets = socketsOf[roomId];
-  Object.keys(sockets).forEach(function(key) {
-    sockets[key].emit(event, data, fn);
-  });
-};
-
-// TODO : 見直し
-// Dateオブジェクトから日時を表す文字列を生成する
-function _formatDate(date) {
-  var mm = date.getMonth();
-  var dd = date.getDate();
-  var HH = date.getHours();
-  var MM = date.getMinutes();
-  if (HH < 10) {
-    HH = '0' + HH;
-  }
-  if (MM < 10) {
-    MM = '0' + MM;
-  }
-  return mm + '/' + dd + ' ' + HH + ':' + MM;
-};
