@@ -261,6 +261,23 @@
       }
     });
 
+    /**
+     * F5とBackSpaceによる画面遷移を制限する
+     */
+    $(document).keydown(function (e) {
+      if (e.keyCode == 116) {
+        return false;
+      }
+      if (e.keyCode === 8) {
+        var tag = e.target.nodeName.toLowerCase();
+        var $target = $(e.target);
+        if ((tag !== 'input' && tag !== 'textarea') || $target.attr('readonly') || $target.is(':disabled')) {
+          return false;
+        }
+      }
+      return true;
+    });
+
     //------------------------------
     // canvas関連処理定義
     //------------------------------
@@ -283,6 +300,7 @@
         startY = e.pageY - $(this).offset().top;
         drawPoint(startX, startY, drawWidth, color);
         pushBuffer('point', drawWidth, color, { x: startX, y: startY });
+
         // TODO : なんでchromeだけ必要なのか？
         //return false; // for chrome
       });
@@ -312,7 +330,7 @@
 
         drawFlag = false;
       });
-  
+
       /**
        * Canvas MouseLeaveイベント
        */

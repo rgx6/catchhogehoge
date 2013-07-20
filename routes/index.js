@@ -1,12 +1,9 @@
-/*
- * GET home page.
- */
 
-var crypto = require('crypto');
+var appName = 'キャッチ○○○○○○（開発中）';
 
 // TODO : title
 exports.index = function (req, res) {
-  res.render('index', { title: 'catch hoge hoge' });
+  res.render('index', { title: appName });
 };
 
 exports.redirectToIndex = function (req, res) {
@@ -26,9 +23,8 @@ exports.room = function (req, res) {
     return;
   };
 
-  // TODO : ここの仕組みを確認
   var params = {
-    title: 'ルーム：' + roomName,
+    title: appName,
     roomName: roomName,
     userName: userName,
     token: token

@@ -142,6 +142,17 @@
       }
     });
 
+    // TODO : コメント
+    $('#roomList tbody tr').live('click', function () {
+      if (!$(this).hasClass('info')) {
+        $('#roomList tr.info').removeClass('info');
+        $(this).addClass('info');
+      }
+
+      var roomName = $(this).children('td')[0].id;
+      $('#enter-room-name').val(roomName);
+    });
+
     //------------------------------
     // その他
     //------------------------------
@@ -153,13 +164,13 @@
       // TODO : 整形
       $('#roomList').empty();
       var html = '';
-      html += "<table class='table' border='1'><tr><th>部屋名</th><th>パスワード</th><th>人数</th><th>コメント</th><th>辞書</th></tr>";
+      html += "<table class='table table-hover' border='1'><thead><tr><th>部屋名</th><th>パスワード</th><th>人数</th><th>コメント</th><th>辞書</th></tr></thead><tbody>";
       for (var i = 0; i < rooms.length; i++) {
         var room = rooms[i];
-        html += '<tr><td>' + room.name + '</td><td>' + (room.password ? 'あり' : 'なし')
+        html += '<tr><td id=\'' + room.name + '\'>' + room.name + '</td><td>' + (room.password ? 'あり' : 'なし')
               + '</td><td>' + room.playerCount + '/' + room.playerCountMax + '</td><td>' + room.comment + '</td><td>' + room.dictionary + '</td></tr>';
       };
-      html += '</table>';
+      html += '</tbody></table>';
       $('#roomList').append(html);
     }
 
