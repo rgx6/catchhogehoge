@@ -3,14 +3,17 @@ var appName = 'キャッチ○○○○○○（開発中）';
 
 // TODO : title
 exports.index = function (req, res) {
+  'use strict';
   res.render('index', { title: appName });
 };
 
 exports.redirectToIndex = function (req, res) {
+  'use strict';
   res.redirect('/catchhogehoge/');
 };
 
 exports.room = function (req, res) {
+  'use strict';
   var roomName = req.body.roomName || '';
   var userName = req.body.userName || '';
   var token    = req.body.token || '';
@@ -21,7 +24,7 @@ exports.room = function (req, res) {
       token === '') {
     res.send(500);
     return;
-  };
+  }
 
   var params = {
     title: appName,

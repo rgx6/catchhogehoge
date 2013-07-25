@@ -1,4 +1,5 @@
 (function () {
+  'use strict';
   var socket;
 
   $(document).ready(function () {
@@ -6,9 +7,9 @@
 
     // TODO : 外部ファイルから読み込み？
     // サーバに接続
-    var host = 'http://rgx.c.node-ninja.com/';
+    // var host = 'http://rgx.c.node-ninja.com/';
     // var host = 'http://rgx.sakura.ne.jp/';
-    // var host = 'http://localhost/';
+    var host = 'http://localhost/';
     socket = io.connect(host);
 
     //------------------------------
@@ -21,7 +22,7 @@
     socket.on('connected', function () {
       // console.log('connected');
 
-      socket.emit('init lobby')
+      socket.emit('init lobby');
     });
 
     /**
@@ -50,13 +51,13 @@
       };
 
       socket.emit('create room', credentials, function (data) {
-        if (data.result == 'bad param') {
+        if (data.result === 'bad param') {
           // TODO : エラー表示
           alert('不正なパラメータです');
-        } else if (data.result == 'room exist') {
+        } else if (data.result === 'room exist') {
           // TODO : エラー表示
           alert('同じ名前の部屋があります');
-        } else if (data.result == 'ok') {
+        } else if (data.result === 'ok') {
           $.form({
             type: 'post',
             url:  'gameroom/',
@@ -85,22 +86,22 @@
       };
 
       socket.emit('enter room', credentials, function (data) {
-        if (data.result == 'bad param') {
+        if (data.result === 'bad param') {
           // TODO : エラー表示
           alert('不正なパラメータです');
-        } else if (data.result == 'not exist') {
+        } else if (data.result === 'not exist') {
           // TODO : エラー表示
           alert('部屋がありません');
-        } else if (data.result == 'password ng') {
+        } else if (data.result === 'password ng') {
           // TODO : エラー表示
           alert('パスワードが違います');
-        } else if (data.result == 'full') {
+        } else if (data.result === 'full') {
           // TODO : エラー表示
           alert('満員です');
-        } else if (data.result == 'name exist') {
+        } else if (data.result === 'name exist') {
           // TODO : エラー表示
           alert('同じ名前のプレイヤーがいます');
-        } else if (data.result == 'ok') {
+        } else if (data.result === 'ok') {
           $.form({
             type: 'post',
             url:  'gameroom/',
@@ -124,7 +125,7 @@
       if ((e.which && e.which === 13) || (e.keyCode && e.keyCode === 13)) {
         var message = $('#bug').val();
 
-        if (message.length == 0) {
+        if (message.length === 0) {
           // なにもしない
         } else if (message.length > 500) {
           // TODO : エラー表示
@@ -165,11 +166,11 @@
       $('#roomList').empty();
       var html = '';
       html += "<table class='table table-hover' border='1'><thead><tr><th>部屋名</th><th>パスワード</th><th>人数</th><th>コメント</th><th>辞書</th></tr></thead><tbody>";
-      for (var i = 0; i < rooms.length; i++) {
+      for (var i = 0; i < rooms.length; i += 1) {
         var room = rooms[i];
-        html += '<tr><td id=\'' + room.name + '\'>' + room.name + '</td><td>' + (room.password ? 'あり' : 'なし')
-              + '</td><td>' + room.playerCount + '/' + room.playerCountMax + '</td><td>' + room.comment + '</td><td>' + room.dictionary + '</td></tr>';
-      };
+        html += '<tr><td id=\'' + room.name + '\'>' + room.name + '</td><td>' + (room.password ? 'あり' : 'なし') +
+                '</td><td>' + room.playerCount + '/' + room.playerCountMax + '</td><td>' + room.comment + '</td><td>' + room.dictionary + '</td></tr>';
+      }
       html += '</tbody></table>';
       $('#roomList').append(html);
     }
@@ -200,9 +201,9 @@
             'value': s.data[a]
           })
           .appendTo(form[0]);
-      };
+      }
   
       form[0].submit();
-    }
+    };
   });
 })();

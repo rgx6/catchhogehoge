@@ -54,7 +54,7 @@ app.use(app.router);
 app.use(express.static(path.join(__dirname, 'public')));
 
 // development only
-if ('development' == app.get('env')) {
+if ('development' === app.get('env')) {
   app.use(express.errorHandler());
 }
 
@@ -64,7 +64,8 @@ app.get('/catchhogehoge', routes.redirectToIndex);
 app.post('/catchhogehoge/gameroom/', routes.room);
 
 var server = http.createServer(app);
-server.listen(app.get('port'), function(){
+server.listen(app.get('port'), function () {
+  'use strict';
   console.log('Express server listening on port ' + app.get('port'));
 });
 

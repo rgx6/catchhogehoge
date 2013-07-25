@@ -1,5 +1,6 @@
 (function () {
-
+  'use strict';
+    
   /**
    * コンストラクタ 
    */
@@ -14,13 +15,13 @@
       // TODO : お題にもHTMLエスケープ必要か？登録時にチェックすれば不要
       var nextIndex = Math.floor(Math.random() * this.words.length);
       return this.words[nextIndex];
-    }
+    };
 
     /**
      * ヒントを取得する
      */
     Dictionary.getHint = function (word, level) {
-      if (level == 9) {
+      if (level === 9) {
         // 正解
         return word;
       } else if (level >= 3 && word.length >= 3) {
@@ -36,7 +37,7 @@
         // ノーヒント
         return '？？？';
       }
-    }
+    };
 
     return Dictionary;
   })();

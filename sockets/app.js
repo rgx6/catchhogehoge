@@ -11,6 +11,8 @@ var commentLengthLimit = 40;
 var playerNameLengthLimit = 20;
 var passwordLengthLimit =  20;
 
+var crypto = require('crypto');
+
 var Room = require('./room.js').Room;
 var Player = require('./player.js').Player;
 
@@ -20,7 +22,8 @@ var rooms = {};
 // タイマー処理用オブジェクト
 // TODO : 遅延が酷いようなら別の管理方法を検討する
 var previousTime = new Date();
-var roomTimer = setInterval(function() {
+var roomTimer = setInterval(function () {
+  "use strict";
   var newTime = new Date();
   // TODO : DEBUG
   if (Math.abs(newTime - previousTime - 1000) >= 50) {
@@ -35,15 +38,17 @@ var roomTimer = setInterval(function() {
  * タイマー処理の中身
  */
 function timerProc() {
+  'use strict';
   Object.keys(rooms).forEach(function (key) {
     rooms[key].timerProc();
   });
-};
+}
 
 /**
  * socket.ioのコネクション設定
  */
 exports.onConnection = function (client) {
+  'use strict';
   // console.log('connected');
 
   client.emit('connected');
@@ -71,14 +76,12 @@ exports.onConnection = function (client) {
 
     // パラメータチェック
     // TODO : dictionaryの仕様が決まったらチェック
-    if (data.roomName == null ||
-        data.roomName.length == 0 ||
-        data.roomName.length > roomNameLengthLimit ||
-        data.userName == null ||
-        data.userName.length == 0 ||
-        data.userName.length > playerNameLengthLimit ||
-        (data.comment != null && data.comment.length > commentLengthLimit) ||
-        (data.password != null && data.password.length > passwordLengthLimit)) {
+    if (typeof data === 'undefined' ||
+        data === null ||
+        !checkParamLength(data.roomName, roomNameLengthLimit, true) ||
+        !checkParamLength(data.userName, playerNameLengthLimit, true) ||
+        !checkParamLength(data.comment, commentLengthLimit, false) ||
+        !checkParamLength(data.password, passwordLengthLimit, false)) {
       console.log('[create][bad param]');
 
       fn({ result: 'bad param' });
@@ -86,7 +89,7 @@ exports.onConnection = function (client) {
     }
 
     // 部屋の存在チェック
-    if (rooms[data.roomName] != null) {
+    if (rooms[data.roomName]) {
       // console.log('create room exist')
 
       fn({ result: 'room exist' });
@@ -114,13 +117,11 @@ exports.onConnection = function (client) {
     // TODO : 処理をRoomクラスに移動
 
     // パラメータチェック
-    if (data.roomName == null ||
-        data.roomName.length == 0 ||
-        data.roomName.length > roomNameLengthLimit ||
-        data.userName == null ||
-        data.userName.length == 0 ||
-        data.userName.length > playerNameLengthLimit ||
-        (data.password != null && data.password.length > passwordLengthLimit)) {
+    if (typeof data === 'undefined' ||
+        data === null ||
+        !checkParamLength(data.roomName, roomNameLengthLimit, true) ||
+        !checkParamLength(data.userName, playerNameLengthLimit, true) ||
+        !checkParamLength(data.password, passwordLengthLimit, false)) {
       console.log('[enter][bad param]');
 
       fn({ result: 'bad param' });
@@ -128,7 +129,7 @@ exports.onConnection = function (client) {
     }
 
     // 部屋の存在チェック
-    if (rooms[data.roomName] == null) {
+    if (!rooms[data.roomName]) {
       // console.log('[enter][not exist]');
 
       fn({ result: 'not exist' });
@@ -138,7 +139,7 @@ exports.onConnection = function (client) {
     var room = rooms[data.roomName];
 
     // パスワードチェック
-    if (room.password != data.password) {
+    if (room.password !== data.password) {
       // console.log('[enter][password ng]');
 
       fn({ result: 'password ng' });
@@ -154,8 +155,8 @@ exports.onConnection = function (client) {
     }
 
     // 名前重複チェック
-    for (var i = 0; i < room.users.length; i++) {
-      if (room.users[i].name == data.userName) {
+    for (var i = 0; i < room.users.length; i += 1) {
+      if (room.users[i].name === data.userName) {
         // console.log('[enter][name exist]');
 
         fn({ result: 'name exist' });
@@ -183,16 +184,15 @@ exports.onConnection = function (client) {
     // console.log('init room');
 
     // パラメータチェック
-    if (data.roomName == null ||
-        data.roomName.length == 0 ||
-        data.roomName.length > roomNameLengthLimit ||
-        data.userName == null ||
-        data.userName.length == 0 ||
-        data.userName.length > playerNameLengthLimit ||
-        rooms[data.roomName] == null ||
-        rooms[data.roomName].tokens[data.userName] == null ||
-        rooms[data.roomName].tokens[data.userName] != data.token) {
-      // console.log('init room ng');
+    if (typeof data === 'undefined' ||
+        data === null ||
+        !checkParamLength(data.roomName, roomNameLengthLimit, true) ||
+        !checkParamLength(data.userName, playerNameLengthLimit, true) ||
+        typeof rooms[data.roomName] === 'undefined' ||
+        typeof rooms[data.roomName].tokens[data.userName] === 'undefined'// ||
+        //rooms[data.roomName].tokens[data.userName] !== data.token
+        ) {
+      console.log('[init][bad param]');
 
       callback({ result: 'bad param' });
       return;
@@ -210,7 +210,7 @@ exports.onConnection = function (client) {
     delete room.tokens[data.userName];
 
     // 部屋定員チェック
-    if (room.users.length == room.playerCountMax) {
+    if (room.users.length === room.playerCountMax) {
       // console.log('init room full');
 
       callback({ result: 'full' });
@@ -218,7 +218,7 @@ exports.onConnection = function (client) {
     }
 
     // 部屋にユーザー情報を登録
-    var isReady = room.mode != 'chat';
+    var isReady = room.mode !== 'chat';
     room.users.push(new Player(data.userName, isReady, client));
 
     // socket に部屋名とプレイヤー名を持たせておく
@@ -234,7 +234,7 @@ exports.onConnection = function (client) {
     }
 
     // turn中ならヒントも送る
-    if (room.mode == 'turn') {
+    if (room.mode === 'turn') {
       callback({ result: 'ok', mode: room.mode, theme: room.lastHint });
     } else {
       callback({ result: 'ok', mode: room.mode });
@@ -255,14 +255,12 @@ exports.onConnection = function (client) {
     // 部屋名とプレイヤー名を socket から取り出す
     var roomName;
     client.get('roomName', function(err, _roomName) {
-      if (err || !_roomName)
-        return;
+      if (err || !_roomName) { return; }
       roomName = _roomName;
     });
     var userName;
     client.get('userName', function(err, _userName) {
-      if (err || !_userName)
-        return;
+      if (err || !_userName) { return; }
       userName = _userName;
     });
 
@@ -273,7 +271,7 @@ exports.onConnection = function (client) {
     if (!room.isValidMessage(message)) {
       // 無視する
       return;
-    };
+    }
 
     room.procMessage(userName, message);
     // callbackで成功を通知
@@ -290,14 +288,12 @@ exports.onConnection = function (client) {
     // 部屋名とプレイヤー名を socket から取り出す
     var roomName;
     client.get('roomName', function (err, _roomName) {
-      if (err || !_roomName)
-        return;
+      if (err || !_roomName) { return; }
       roomName = _roomName;
     });
     var userName;
     client.get('userName', function (err, _userName) {
-      if (err || !_userName)
-        return;
+      if (err || !_userName) { return; }
       userName = _userName;
     });
 
@@ -312,14 +308,12 @@ exports.onConnection = function (client) {
     // 部屋名とプレイヤー名を socket から取り出す
     var roomName;
     client.get('roomName', function(err, _roomName) {
-      if (err || !_roomName)
-        return;
+      if (err || !_roomName) { return; }
       roomName = _roomName;
     });
     var userName;
     client.get('userName', function(err, _userName) {
-      if (err || !_userName)
-        return;
+      if (err || !_userName) { return; }
       userName = _userName;
     });
 
@@ -331,8 +325,8 @@ exports.onConnection = function (client) {
     var room = rooms[roomName];
 
     // TODO : Roomで処理する
-    for (var i = 0; i < room.users.length; i++) {
-      if (room.users[i] != null && room.users[i].name == userName) {
+    for (var i = 0; i < room.users.length; i += 1) {
+      if (room.users[i] !== null && room.users[i].name === userName) {
         // console.log('ready ' + userName);
         room.users[i].isReady = true;
         break;
@@ -367,26 +361,24 @@ exports.onConnection = function (client) {
 
     var roomName;
     client.get('roomName', function(err, _roomName) {
-      if (err || !_roomName)
-        return;
+      if (err || !_roomName) { return; }
       roomName = _roomName;
     });
     var userName;
     client.get('userName', function(err, _userName) {
-      if (err || !_userName)
-        return;
+      if (err || !_userName) { return; }
       userName = _userName;
     });
 
     // lobbyの場合 後始末不要
-    if (roomName == null || userName == null) return;
+    if (!roomName || !userName) { return; }
 
     console.log('[disconnect]' + '[room:' + roomName + '][player:' + userName + ']');
 
     rooms[roomName].playerExit(userName);
 
     // playerがいなくなったらroomも削除する
-    if (rooms[roomName].users.length == 0) {
+    if (rooms[roomName].users.length === 0) {
       delete rooms[roomName];
     }
 
@@ -399,10 +391,18 @@ exports.onConnection = function (client) {
 //------------------------------
 
 /**
+ * HTMLエスケープ処理 
+ */
+function escapeHTML (str) {
+  'use strict';
+  return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/**
  * client送信用のroom情報を取得する
  */
-function getRoomsInfo() {
-  // console.log('get rooms info');
+function getRoomsInfo () {
+  'use strict';
 
   var roomsInfo = [];
   var keys = Object.keys(rooms);
@@ -423,21 +423,36 @@ function getRoomsInfo() {
 /**
  * lobby のユーザーに lobby 情報を送信する
  */
-function updateLobby(client) {
-  if (client == null) {
-    // console.log('update lobby broad cast');
+function updateLobby (client) {
+  'use strict';
+
+  if (typeof client === 'undefined' ||
+      client === null) {
+    // console.log('[update lobby][lobby all]');
     // ブロードキャスト
     sockets.to('lobby').emit('update lobby', getRoomsInfo());
   } else {
-    // console.log('update lobby');
+    // console.log('[update lobby][user]');
     // 要求ユーザーのみ
     client.emit('update lobby', getRoomsInfo());
   }
 }
 
 /**
- * HTMLエスケープ処理 
+ * nullとundefinedと文字数のチェック
  */
-function escapeHTML (str) {
-  return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+function checkParamLength (data, maxLength, required) {
+  'use strict';
+
+  if (required) {
+    return typeof data !== 'undefined' &&
+           data !== null &&
+           data.length !== 0 &&
+           data.length <= maxLength;
+  } else {
+    return typeof data === 'undefined' ||
+           data === null ||
+           data.length === 0 ||
+           data.length <= maxLength;
+  }
 }
