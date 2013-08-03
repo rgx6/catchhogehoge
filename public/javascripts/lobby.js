@@ -1,11 +1,11 @@
 (function () {
   'use strict';
   var socket;
+  var dictionary = '';
 
   $(document).ready(function () {
     // console.log('ready');
 
-    // TODO : 外部ファイルから読み込み？
     // サーバに接続
     // var host = 'http://rgx.c.node-ninja.com/';
     // var host = 'http://rgx.sakura.ne.jp/';
@@ -39,15 +39,61 @@
     //------------------------------
 
     /**
+     * 辞書ファイルドロップ領域のdragoverイベント
+     */
+    $('#dictionaryTarget').on('dragover', function (event) {
+      // console.log('drag over');
+
+      event.preventDefault();
+    });
+
+    /**
+     * 辞書ファイルドロップ領域のdropイベント
+     */
+    $('#dictionaryTarget').on('drop', function (event) {
+      // console.log('drop');
+
+      dictionary = '';
+      // TODO : 1単語の文字数、単語数に制限を設ける
+      // TODO : ファイル1つ1つの読込状況が分かるようにする
+      var files = event.originalEvent.dataTransfer.files;
+      for (var i = 0; i < files.length; i += 1) {
+        var file = files[i];
+        
+        // $('#dictionaryTarget').append(file.name + ' start' + '<br />');
+        // console.log(file.name + ' start' + '\n')
+        var fileReader = new FileReader();
+        fileReader.onload = function (event) {
+          var lines = event.target.result.split('\n');
+          for (var l = 0; l < lines.length; l += 1) {
+            var word = lines[l].trim().match(/^[あ-んー]+/);
+            if (word !== null && word.length > 0) {
+              dictionary += word + '\n';
+            }
+          }
+
+          // $('#dictionaryTarget').append(file.name + ' end' + '<br />');
+          // TODO : fileが最後に実行されたものになってしまう
+          // console.log(file.name + ' end' + '\n')
+          // console.log(dictionary);
+        };
+
+        fileReader.readAsText(file, 'shift-jis');
+        event.preventDefault();
+      }
+    });
+
+    /**
      * 部屋作成に必要な情報を送る
      */
     $('#create-room').on('click', function () {
       var credentials = {
-        roomName: $('#new-room-name').val(),
-        comment:  $('#new-room-comment').val(),
-        userName: $('#new-player-name').val(),
-        password: $('#new-password').val(),
-        dictionary: null
+        roomName:   $('#new-room-name').val(),
+        comment:    $('#new-room-comment').val(),
+        userName:   $('#new-player-name').val(),
+        password:   $('#new-password').val(),
+        // TODO : trim()は仮
+        dictionary: dictionary.trim()
       };
 
       socket.emit('create room', credentials, function (data) {
@@ -169,7 +215,7 @@
       for (var i = 0; i < rooms.length; i += 1) {
         var room = rooms[i];
         html += '<tr><td id=\'' + room.name + '\'>' + room.name + '</td><td>' + (room.password ? 'あり' : 'なし') +
-                '</td><td>' + room.playerCount + '/' + room.playerCountMax + '</td><td>' + room.comment + '</td><td>' + room.dictionary + '</td></tr>';
+                '</td><td>' + room.playerCount + '/' + room.playerCountMax + '</td><td>' + room.comment + '</td><td>' + room.dictionaryName + '</td></tr>';
       }
       html += '</tbody></table>';
       $('#roomList').append(html);

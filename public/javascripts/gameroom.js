@@ -1,5 +1,3 @@
-// TODO : F5無効化
-
 (function () {
   $(document).ready(function () {
 

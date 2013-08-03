@@ -75,13 +75,13 @@ exports.onConnection = function (client) {
     // console.log('create room : ' + data.roomName);
 
     // パラメータチェック
-    // TODO : dictionaryの仕様が決まったらチェック
+    // TODO : dictionaryの仕様が決まったらチェック サイズ、単語数、etc
     if (typeof data === 'undefined' ||
         data === null ||
-        !checkParamLength(data.roomName, roomNameLengthLimit, true) ||
+        !checkParamLength(data.roomName, roomNameLengthLimit,   true) ||
         !checkParamLength(data.userName, playerNameLengthLimit, true) ||
-        !checkParamLength(data.comment, commentLengthLimit, false) ||
-        !checkParamLength(data.password, passwordLengthLimit, false)) {
+        !checkParamLength(data.comment,  commentLengthLimit,    false) ||
+        !checkParamLength(data.password, passwordLengthLimit,   false)) {
       console.log('[create][bad param]');
 
       fn({ result: 'bad param' });
@@ -98,10 +98,13 @@ exports.onConnection = function (client) {
 
     // 作成OK
 
-    // TODO : room作成のタイミングは画面遷移後に移すか？
-    rooms[data.roomName] = new Room(data.roomName, data.comment, data.password);
+    // TODO : 部屋のIDを発行
+    var id = 'dummyId';
+    rooms[data.roomName] = new Room(id, data.roomName, data.comment, data.password, data.dictionary);
 
     // 認証用トークン発行
+    // TODO : トークンの仕様変更 token(roomid) -> roomname, playername
+    // roomではなくてこのファイル内に持たせる
     var token = Math.random();
     rooms[data.roomName].tokens[data.userName] = token;
 
@@ -412,7 +415,7 @@ function getRoomsInfo () {
       name:           escapeHTML(room.name),
       comment:        escapeHTML(room.comment),
       password:       room.password ? true : false,
-      dictionary:     escapeHTML(room.dictionary.name),
+      dictionaryName: escapeHTML(room.dictionary.name),
       playerCount:    room.users.length,
       playerCountMax: room.playerCountMax
     });

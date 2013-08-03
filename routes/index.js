@@ -1,10 +1,9 @@
 
 var appName = 'キャッチ○○○○○○（開発中）';
 
-// TODO : title
 exports.index = function (req, res) {
   'use strict';
-  res.render('index', { title: appName });
+  res.render('lobby', { title: appName });
 };
 
 exports.redirectToIndex = function (req, res) {

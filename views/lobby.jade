@@ -50,9 +50,14 @@ block content
             label.control-label(for='new-password') パスワード
             .controls
               input#new-password(type='password', name='newPassword', maxlength='20', placeholder='パスワードを入力...')
+          .control-group
+            label.control-label(for='new-dictionary') 辞書
+            .controls
+              #dictionaryTarget(style='height: 50px; width: 200px; background-color: silver;')
+                  ここにドロップ
               br
               br
-              button#create-room.btn(type='button') 部屋を作成
+              button#create-room.btn(type='button') 部屋を作る
 
       .span12
         h2 部屋一覧
