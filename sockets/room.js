@@ -23,9 +23,9 @@
       this.theme          = null;
       // 直前に出したヒント
       this.lastHint       = null;
-      // TODO : playersに変える
-      this.users          = [];
-      // usersにおけるpainterのindex
+      // プレイヤー管理用オブジェクト
+      this.players        = [];
+      // playersにおけるpainterのindex
       this.painterIndex   = 0;
       // お絵かきログ
       this.imagelog       = [];
@@ -63,15 +63,15 @@
      * 部屋が満員かどうか
      */
     Room.prototype.isFull = function () {
-      return this.users.length === this.playerCountMax;
+      return this.players.length === this.playerCountMax;
     };
 
     /**
      * 部屋のプレイヤーが全員準備完了しているかどうか
      */
     Room.prototype.isReady = function () {
-      for (var i = 0; i < this.users.length; i += 1) {
-        if (!this.users[i].isReady) { return false; }
+      for (var i = 0; i < this.players.length; i += 1) {
+        if (!this.players[i].isReady) { return false; }
       }
       return true;
     };
@@ -81,12 +81,12 @@
      */
     Room.prototype.getPlayersInfo = function () {
       var players = [];
-      for (var i = 0; i < this.users.length; i += 1) {
-        var user = this.users[i];
+      for (var i = 0; i < this.players.length; i += 1) {
+        var player = this.players[i];
         players.push({
-          name:      escapeHTML(user.name),
-          score:     user.score,
-          isReady:   user.isReady,
+          name:      escapeHTML(player.name),
+          score:     player.score,
+          isReady:   player.isReady,
           isPainter: i === this.painterIndex ? true : false
         });
       }
@@ -105,11 +105,11 @@
     };
 
     /**
-     * プレイヤーの名前からusersのindexを取得
+     * プレイヤーの名前からplayersのindexを取得
      */
     Room.prototype.getPlayerIndex = function (playerName) {
-      for (var i = 0; i < this.users.length; i += 1) {
-        if (this.users[i].name === playerName) { return i; }
+      for (var i = 0; i < this.players.length; i += 1) {
+        if (this.players[i].name === playerName) { return i; }
       }
       return -1;
     };
@@ -135,15 +135,15 @@
         if(message.trim() === this.theme) {
           // 正解
           var playerIndex = this.getPlayerIndex(playerName);
-          if (this.users[this.painterIndex].name === playerName) {
+          if (this.players[this.painterIndex].name === playerName) {
             this.pushSystemMessage('ネタバレダメ。ゼッタイ。');
             return;
           }
 
-          sockets.to(this.id).emit('push chat', { userName: escapeHTML(playerName), message: escapeHTML(message) });
+          sockets.to(this.id).emit('push chat', { playerName: escapeHTML(playerName), message: escapeHTML(message) });
 
-          var player = this.users[playerIndex];
-          var painter = this.users[this.painterIndex];
+          var player = this.players[playerIndex];
+          var painter = this.players[this.painterIndex];
           player.score += this.timeLeft;
           painter.score += this.timeLeft;
           this.sendTheme(9);
@@ -153,10 +153,10 @@
           this.endTurn();
         } else {
           // 不正解
-          sockets.to(this.id).emit('push chat', { userName: escapeHTML(playerName), message: escapeHTML(message) });
+          sockets.to(this.id).emit('push chat', { playerName: escapeHTML(playerName), message: escapeHTML(message) });
         }
       } else {
-        sockets.to(this.id).emit('push chat', { userName: escapeHTML(playerName), message: escapeHTML(message) });
+        sockets.to(this.id).emit('push chat', { playerName: escapeHTML(playerName), message: escapeHTML(message) });
       }
     };
 
@@ -172,7 +172,7 @@
     /**
      * 送られてきた描画データを処理する
      */
-    Room.prototype.procImage = function (data, userName) {
+    Room.prototype.procImage = function (data, playerName) {
       if (data.lenght === 1 && data[0].type === 'fill') {
         this.imagelog.length = 0;
         this.imagelog.push(data);
@@ -181,9 +181,9 @@
       }
 
       // 通信量削減のため描いた人には送らない
-      for (var i = 0; i < this.users.length; i += 1) {
-        if (this.users[i].name !== userName) {
-          this.users[i].socket.emit('push image', data);
+      for (var i = 0; i < this.players.length; i += 1) {
+        if (this.players[i].name !== playerName) {
+          this.players[i].socket.emit('push image', data);
         }
       }
     };
@@ -202,14 +202,14 @@
       // this.log('send theme');
 
       this.lastHint = Dictionary.getHint(this.theme, level);
-      for (var i = 0; i < this.users.length; i += 1) {
+      for (var i = 0; i < this.players.length; i += 1) {
         if (i === this.painterIndex) {
           // painterには最初の1回だけ送れば十分
           if (level === 0) {
-            this.users[i].socket.emit('send theme', this.theme);
+            this.players[i].socket.emit('send theme', this.theme);
           }
         } else {
-          this.users[i].socket.emit('send theme', this.lastHint);
+          this.players[i].socket.emit('send theme', this.lastHint);
         }
       }
     };
@@ -220,11 +220,11 @@
     Room.prototype.sendIsPainter = function () {
       // this.log('send painter');
 
-      for (var i = 0; i < this.users.length; i += 1) {
+      for (var i = 0; i < this.players.length; i += 1) {
         if (i === this.painterIndex) {
-          this.users[i].socket.emit('send is painter', true);
+          this.players[i].socket.emit('send is painter', true);
         } else {
-          this.users[i].socket.emit('send is painter', false);
+          this.players[i].socket.emit('send is painter', false);
         }
       }
     };
@@ -294,8 +294,8 @@
       // this.log('init game');
 
       // TODO : 場所検討
-      for (var i = 0; i < this.users.length; i += 1) {
-        this.users[i].score = 0;
+      for (var i = 0; i < this.players.length; i += 1) {
+        this.players[i].score = 0;
       }
       this.updateMember();
 
@@ -339,7 +339,7 @@
         this.pushSystemMessage('正解は ' + this.theme + ' でした');
       }
 
-      if (this.painterIndex === this.users.length - 1) {
+      if (this.painterIndex === this.players.length - 1) {
         // round終了
         if (this.round === this.roundMax) {
           // ゲーム終了
@@ -347,11 +347,11 @@
 
           var maxScore = 0;
           var winnerIndex = [];
-          for (var i = 0; i < this.users.length; i += 1) {
-            if (this.users[i].score > maxScore) {
-              maxScore = this.users[i].score;
+          for (var i = 0; i < this.players.length; i += 1) {
+            if (this.players[i].score > maxScore) {
+              maxScore = this.players[i].score;
               winnerIndex = [i];
-            } else if (this.users[i].score === maxScore) {
+            } else if (this.players[i].score === maxScore) {
               winnerIndex.push(i);
             }
           }
@@ -359,18 +359,18 @@
           if (maxScore === 0) {
             this.pushSystemMessage('もっとがんばりましょう');
           } else if (winnerIndex.length === 1) {
-            this.pushSystemMessage('優勝は ' + this.users[winnerIndex[0]].name + ' さんでした');
+            this.pushSystemMessage('優勝は ' + this.players[winnerIndex[0]].name + ' さんでした');
           } else {
             var winners = '';
-            for (var i = 0; i < winnerIndex.length; i += 1) {
-              winners += this.users[winnerIndex[i]].name + ' さんと ';
+            for (var j = 0; j < winnerIndex.length; j += 1) {
+              winners += this.players[winnerIndex[j]].name + ' さんと ';
             }
             winners = winners.substr(0, winners.length - 2);
             this.pushSystemMessage('優勝は同率で ' + winners + 'でした');
           }
 
-          for (var i = 0; i < this.users.length; i += 1) {
-            this.users[i].isReady = false;
+          for (var k = 0; k < this.players.length; k += 1) {
+            this.players[k].isReady = false;
           }
           this.changeModeChat();
         } else {
@@ -378,13 +378,13 @@
           this.pushSystemMessage('ラウンド ' + this.round + ' が終了しました');
           this.round += 1;
           this.painterIndex = 0;
-          this.pushSystemMessage('次に描く人は ' + this.users[this.painterIndex].name + ' さんです');
+          this.pushSystemMessage('次に描く人は ' + this.players[this.painterIndex].name + ' さんです');
           this.changeModeInterval();
         }
       } else {
         // 次のturnに
         this.painterIndex += 1;
-        this.pushSystemMessage('次に描く人は ' + this.users[this.painterIndex].name + ' さんです');
+        this.pushSystemMessage('次に描く人は ' + this.players[this.painterIndex].name + ' さんです');
         this.changeModeInterval();
       }
 
@@ -429,32 +429,32 @@
     /**
      * player退出時の処理
      */
-    Room.prototype.playerExit = function (userName) {
-      this.log('[exit]' + userName);
+    Room.prototype.playerExit = function (playerName) {
+      this.log('[exit]' + playerName);
 
       var exitPlayerIndex;
-      for (exitPlayerIndex = 0; exitPlayerIndex < this.users.length; exitPlayerIndex += 1) {
+      for (exitPlayerIndex = 0; exitPlayerIndex < this.players.length; exitPlayerIndex += 1) {
         // TODO : 一致するユーザーがいない可能性はあるか？
-        if (this.users[exitPlayerIndex].name === userName) {
+        if (this.players[exitPlayerIndex].name === playerName) {
           break;
         }
       }
 
       // roomからプレイヤーを削除
-      this.users.splice(exitPlayerIndex, 1);
+      this.players.splice(exitPlayerIndex, 1);
 
       // 誰もいない
-      if (this.users.length === 0) {
+      if (this.players.length === 0) {
         return;
       }
 
-      this.pushSystemMessage(userName + ' さんが退室しました');
+      this.pushSystemMessage(playerName + ' さんが退室しました');
 
       // 残りプレイヤーが1人になったら強制的にゲーム終了
-      if (this.users.length === 1 && this.mode !== 'chat') {
+      if (this.players.length === 1 && this.mode !== 'chat') {
         this.pushSystemMessage('1人になってしまいました');
         this.pushSystemMessage('ゲームを続行できないのでゲームを終了します');
-        this.users[0].isReady = false;
+        this.players[0].isReady = false;
         this.changeModeChat();
         this.updateMember();
         return;
@@ -464,7 +464,7 @@
       if (this.mode === 'turn' || this.mode === 'interval') {
         if (exitPlayerIndex < this.painterIndex) {
           // painterより前のプレイヤーが退室
-          // usersのindexが1つ前にずれるためpainterIndexも1つ減らす
+          // playersのindexが1つ前にずれるためpainterIndexも1つ減らす
           this.painterIndex -= 1;
         } else if (exitPlayerIndex === this.painterIndex) {
           this.painterIndex -= 1;
@@ -472,7 +472,7 @@
             this.pushSystemMessage('描く人が退室したのでターンを終了します');
           } else {
             this.pushSystemMessage('次に描く予定の人が退室しました');
-            this.pushSystemMessage('次に描く人は ' + this.users[this.painterIndex].name + ' さんです');
+            this.pushSystemMessage('次に描く人は ' + this.players[this.painterIndex].name + ' さんです');
           }
           this.endTurn();
         } else {
@@ -480,7 +480,7 @@
         }
       } else if (this.mode === 'chat') {
         // TODO : 残ったプレイヤーが全員準備完了なら自動的readyに遷移する
-        if (this.users.length >= 2 && this.isReady()) {
+        if (this.players.length >= 2 && this.isReady()) {
           // TODO : changeModeReadyとupdateMemberはどっちが先でも同じか？
           this.changeModeReady();
         }
@@ -497,7 +497,6 @@
     };
 
     // TODO : app.jsでも使ってるので共通化する
-    // TODO : 名前とかに&amp;入れると落ちる
     /**
      * HTMLエスケープ処理 
      */

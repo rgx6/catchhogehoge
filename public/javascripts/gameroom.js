@@ -47,8 +47,6 @@
       redirectToLobby();
     }
 
-    // TODO : 部屋名とか設定（認証完了後か？）
-
     //------------------------------
     // メッセージハンドラ定義
     //------------------------------
@@ -69,14 +67,20 @@
           alert('不正なパラメータです');
           // TODO : ここのredirectを無効化して例外発生条件を検証
           redirectToLobby();
+        } else if (data.result === 'expired') {
+          alert('認証エラーです。');
+          redirectToLobby();
         } else if (data.result === 'full') {
           alert('部屋が満員です');
           redirectToLobby();
         } else if (data.result === 'ok') {
+          $('#roomName').text('部屋名：' + data.name);
           mode = data.mode;
+
           if (mode !== 'chat') {
             $('#ready').attr('disabled', true);
           }
+
           if (mode === 'turn') {
             $('#theme').empty();
             $('#theme').append('お題 ： ' + data.theme);
@@ -94,7 +98,7 @@
     socket.on('push chat', function (message) {
       // console.log('push chat');
       // TODO : メッセージが長すぎると枠からはみ出る sysmessageも同様 スクロールバーも付けたい
-      $('#messages').prepend(message.userName + ' ： ' + message.message + '<br />');
+      $('#messages').prepend(message.playerName + ' ： ' + message.message + '<br />');
     });
 
     /**
@@ -208,12 +212,10 @@
       if ((e.which && e.which === 13) || (e.keyCode && e.keyCode === 13)) {
         var message = $('#message').val();
 
-        if (message.length === 0) {
-          // なにもしない
-        } else if (message.length > messageLengthLimit) {
-          // TODO : エラー表示
-          // TODO : メッセージ入力欄の下に出てくる候補が邪魔
-        } else {
+        if (typeof message !== 'undefined' &&
+            message !== null &&
+            0 < message.length &&
+            message.length <= messageLengthLimit) {
           socket.emit('send chat', message, function () {
             // メッセージの送信に成功したらテキストボックスをクリアする
             $('#message').val('');
@@ -245,12 +247,7 @@
       if ((e.which && e.which === 13) || (e.keyCode && e.keyCode === 13)) {
         var message = $('#bug').val();
 
-        if (message.length === 0) {
-          // なにもしない
-        } else if (message.length > 500) {
-          // TODO : エラー表示
-          // TODO : メッセージ入力欄の下に出てくる候補が邪魔
-        } else {
+        if (0 < message.length && message.length <= 500) {
           socket.emit('send bug', { message: message, from: 'room' }, function () {
             // メッセージの送信に成功したらテキストボックスをクリアする
             $('#bug').val('');

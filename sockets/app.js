@@ -1,7 +1,6 @@
 // TODO : 何が送られてきても例外で落ちないようにする
 // TODO : 想定外のmessage送って来たクライアントは切断する
-// TODO : init以外はroomとuserを必ずチェック。不正なら処理しない(&キック?)
-// TODO : playerの認証をroomNameとplayerNameから、部屋が生成される度に変わるワンタイムのトークンに変える？
+// TODO : init以外はroomとplayerを必ずチェック。不正なら処理しない(&キック?)
 // TODO : 未使用トークンの（定期的な？）無効化処理をどこかでやる
 // TODO : エラーログをファイルに出力
 
@@ -11,6 +10,9 @@ var roomNameLengthLimit = 20;
 var commentLengthLimit = 40;
 var playerNameLengthLimit = 20;
 var passwordLengthLimit =  20;
+
+// 認証tokenのTTL(ミリ秒)
+var tokenTTL = 10000;
 
 var uuid = require('node-uuid');
 var Room = require('./room.js').Room;
@@ -82,7 +84,7 @@ exports.onConnection = function (client) {
     if (typeof data === 'undefined' ||
         data === null ||
         !checkParamLength(data.roomName, roomNameLengthLimit,   true) ||
-        !checkParamLength(data.userName, playerNameLengthLimit, true) ||
+        !checkParamLength(data.playerName, playerNameLengthLimit, true) ||
         !checkParamLength(data.comment,  commentLengthLimit,    false) ||
         !checkParamLength(data.password, passwordLengthLimit,   false)) {
       console.log('[create][bad param]');
@@ -111,7 +113,7 @@ exports.onConnection = function (client) {
 
     // 認証用トークン発行
     var token = uuid.v4();
-    reservedTokens[token] = { roomID: id, userName: data.userName };
+    reservedTokens[token] = { roomID: id, playerName: data.playerName, issued: new Date() };
 
     fn({ result: 'ok', token: token });
   });
@@ -129,7 +131,7 @@ exports.onConnection = function (client) {
     if (typeof data === 'undefined' ||
         data === null ||
         !checkParamLength(data.id, idLengthLimit, true) ||
-        !checkParamLength(data.userName, playerNameLengthLimit, true) ||
+        !checkParamLength(data.playerName, playerNameLengthLimit, true) ||
         !checkParamLength(data.password, passwordLengthLimit, false)) {
       console.log('[enter][bad param]');
 
@@ -165,8 +167,8 @@ exports.onConnection = function (client) {
     }
 
     // 名前重複チェック
-    for (var i = 0; i < room.users.length; i += 1) {
-      if (room.users[i].name === data.userName) {
+    for (var i = 0; i < room.players.length; i += 1) {
+      if (room.players[i].name === data.playerName) {
         // console.log('[enter][name exist]');
 
         fn({ result: 'name exist' });
@@ -178,7 +180,7 @@ exports.onConnection = function (client) {
 
     // 認証用トークン発行
     var token = uuid.v4();
-    reservedTokens[token] = { roomID: data.id, userName: data.userName };
+    reservedTokens[token] = { roomID: data.id, playerName: data.playerName, issued: new Date() };
 
     fn({ result: 'ok', token: token });
   });
@@ -208,19 +210,27 @@ exports.onConnection = function (client) {
 
     // TODO : 処理をRoomクラスに移す
 
+    if (tokenTTL < new Date() - reservedTokens[data.token].issued) {
+      console.log('[init][token expired]');
+
+      delete reservedTokens[data.token];
+      callback({ result: 'expired' });
+      return;
+    }
+
     // 認証成功
 
     var roomID   = reservedTokens[data.token].roomID;
-    var userName = reservedTokens[data.token].userName;
+    var playerName = reservedTokens[data.token].playerName;
     var room = rooms[roomID];
 
-    room.log('[enter]' + userName);
+    room.log('[enter]' + playerName);
 
     // 認証token削除
     delete reservedTokens[data.token];
 
     // 部屋定員チェック
-    if (room.users.length === room.playerCountMax) {
+    if (room.players.length === room.playerCountMax) {
       // console.log('init room full');
 
       callback({ result: 'full' });
@@ -229,11 +239,11 @@ exports.onConnection = function (client) {
 
     // 部屋にユーザー情報を登録
     var isReady = room.mode !== 'chat';
-    room.users.push(new Player(userName, isReady, client));
+    room.players.push(new Player(playerName, isReady, client));
 
     // socketに部屋とプレイヤーの情報を持たせておく
     client.set('roomID', roomID);
-    client.set('userName', userName);
+    client.set('playerName', playerName);
 
     // socketをroom毎にグループ化する
     client.join(roomID);
@@ -244,12 +254,12 @@ exports.onConnection = function (client) {
 
     // turn中ならヒントも送る
     if (room.mode === 'turn') {
-      callback({ result: 'ok', mode: room.mode, theme: room.lastHint });
+      callback({ result: 'ok', name: room.name, mode: room.mode, theme: room.lastHint });
     } else {
-      callback({ result: 'ok', mode: room.mode });
+      callback({ result: 'ok', name: room.name, mode: room.mode });
     }
 
-    room.pushSystemMessage(userName + ' さんが入室しました');
+    room.pushSystemMessage(playerName + ' さんが入室しました');
     room.updateMember();
     updateLobby();
   });
@@ -267,10 +277,10 @@ exports.onConnection = function (client) {
       if (err || !_roomID) { return; }
       roomID = _roomID;
     });
-    var userName;
-    client.get('userName', function(err, _userName) {
-      if (err || !_userName) { return; }
-      userName = _userName;
+    var playerName;
+    client.get('playerName', function(err, _playerName) {
+      if (err || !_playerName) { return; }
+      playerName = _playerName;
     });
 
     // TODO : 部屋の存在チェックはいらないか？存在しなくてもエラーにはならないはず？
@@ -282,7 +292,7 @@ exports.onConnection = function (client) {
       return;
     }
 
-    room.procMessage(userName, message);
+    room.procMessage(playerName, message);
     // callbackで成功を通知
     // TODO : callbackの名前変える？
     fn();
@@ -300,13 +310,13 @@ exports.onConnection = function (client) {
       if (err || !_roomID) { return; }
       roomID = _roomID;
     });
-    var userName;
-    client.get('userName', function (err, _userName) {
-      if (err || !_userName) { return; }
-      userName = _userName;
+    var playerName;
+    client.get('playerName', function (err, _playerName) {
+      if (err || !_playerName) { return; }
+      playerName = _playerName;
     });
 
-    rooms[roomID].procImage(data, userName);
+    rooms[roomID].procImage(data, playerName);
   });
 
   /**
@@ -320,10 +330,10 @@ exports.onConnection = function (client) {
       if (err || !_roomID) { return; }
       roomID = _roomID;
     });
-    var userName;
-    client.get('userName', function(err, _userName) {
-      if (err || !_userName) { return; }
-      userName = _userName;
+    var playerName;
+    client.get('playerName', function(err, _playerName) {
+      if (err || !_playerName) { return; }
+      playerName = _playerName;
     });
 
     if (!rooms[roomID]) {
@@ -335,10 +345,10 @@ exports.onConnection = function (client) {
     var room = rooms[roomID];
 
     // TODO : Roomで処理する
-    for (var i = 0; i < room.users.length; i += 1) {
-      if (room.users[i] !== null && room.users[i].name === userName) {
-        // console.log('ready ' + userName);
-        room.users[i].isReady = true;
+    for (var i = 0; i < room.players.length; i += 1) {
+      if (room.players[i] !== null && room.players[i].name === playerName) {
+        // console.log('ready ' + playerName);
+        room.players[i].isReady = true;
         break;
       }
     }
@@ -348,7 +358,7 @@ exports.onConnection = function (client) {
 
     room.updateMember();
 
-    if (room.users.length >= 2 && room.isReady()) {
+    if (room.players.length >= 2 && room.isReady()) {
       room.changeModeReady();
     }
   });
@@ -374,21 +384,21 @@ exports.onConnection = function (client) {
       if (err || !_roomID) { return; }
       roomID = _roomID;
     });
-    var userName;
-    client.get('userName', function(err, _userName) {
-      if (err || !_userName) { return; }
-      userName = _userName;
+    var playerName;
+    client.get('playerName', function(err, _playerName) {
+      if (err || !_playerName) { return; }
+      playerName = _playerName;
     });
 
     // lobbyの場合 後始末不要
-    if (!roomID || !userName) { return; }
+    if (!roomID || !playerName) { return; }
 
-    console.log('[disconnect]' + '[id:' + roomID + '][room:' + rooms[roomID].name + '][player:' + userName + ']');
+    console.log('[disconnect]' + '[id:' + roomID + '][room:' + rooms[roomID].name + '][player:' + playerName + ']');
 
-    rooms[roomID].playerExit(userName);
+    rooms[roomID].playerExit(playerName);
 
     // playerがいなくなったらroomも削除する
-    if (rooms[roomID].users.length === 0) {
+    if (rooms[roomID].players.length === 0) {
       delete rooms[roomID];
     }
 
@@ -424,7 +434,7 @@ function getRoomsInfo () {
       comment:        escapeHTML(room.comment),
       password:       room.password ? true : false,
       dictionaryName: escapeHTML(room.dictionary.name),
-      playerCount:    room.users.length,
+      playerCount:    room.players.length,
       playerCountMax: room.playerCountMax
     });
   });
@@ -443,7 +453,7 @@ function updateLobby (client) {
     // ブロードキャスト
     sockets.to('lobby').emit('update lobby', getRoomsInfo());
   } else {
-    // console.log('[update lobby][user]');
+    // console.log('[update lobby][player]');
     // 要求ユーザーのみ
     client.emit('update lobby', getRoomsInfo());
   }

@@ -2,19 +2,15 @@ extends layout
 block content
   script(src='/javascripts/gameroom.js')
   script
-    var credentials = {
-      roomName: '#{roomName}',
-      userName: '#{userName}',
-      token:    '#{token}'
-    };
+    var credentials = { token: '#{token}' };
 
   .navbar.navbar-inverse.navbar-fixed-top
     .navbar-inner
       .container
         a.brand= title
         ul.nav
-          li: a 部屋名：#{roomName}
-          li: a(href='/catchhogehoge/') 退室する
+          li: a#roomName 
+          li: a(href='/catchhogehoge/') 退室
 
   #main-contents.container
     .row
@@ -69,4 +65,4 @@ block content
           input#bug.span9(type='text', maxlength=500, placeholder='メッセージを入力...')
 
     .modal-footer
-      a(href='/catchhogehoge/') 退室する
+      a(href='/catchhogehoge/') 退室

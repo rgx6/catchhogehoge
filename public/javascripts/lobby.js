@@ -90,7 +90,7 @@
       var credentials = {
         roomName:   $('#new-room-name').val(),
         comment:    $('#new-room-comment').val(),
-        userName:   $('#new-player-name').val(),
+        playerName: $('#new-player-name').val(),
         password:   $('#new-password').val(),
         // TODO : trim()は仮
         dictionary: dictionary.trim()
@@ -122,9 +122,9 @@
     $('#enter-room').on('click', function () {
       // TODO : 部屋を一覧から選択できるようにする
       var credentials = {
-        id:       $('#roomList tbody tr.info').attr('id'),
-        userName: $('#enter-player-name').val(),
-        password: $('#enter-password').val(),
+        id:         $('#roomList tbody tr.info').attr('id'),
+        playerName: $('#enter-player-name').val(),
+        password:   $('#enter-password').val(),
       };
 
       socket.emit('enter room', credentials, function (data) {
@@ -163,13 +163,8 @@
       if ((e.which && e.which === 13) || (e.keyCode && e.keyCode === 13)) {
         var message = $('#bug').val();
 
-        if (message.length === 0) {
-          // なにもしない
-        } else if (message.length > 500) {
-          // TODO : エラー表示
-          // TODO : メッセージ入力欄の下に出てくる候補が邪魔
-        } else {
-          socket.emit('send bug', { message: message, from: 'lobby' }, function () {
+        if (0 < message.length && message.length <= 500) {
+          socket.emit('send bug', { message: message, from: 'room' }, function () {
             // メッセージの送信に成功したらテキストボックスをクリアする
             $('#bug').val('');
           });
