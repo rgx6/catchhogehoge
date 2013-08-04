@@ -210,8 +210,10 @@ exports.onConnection = function (client) {
 
     // TODO : 処理をRoomクラスに移す
 
-    if (tokenTTL < new Date() - reservedTokens[data.token].issued) {
-      console.log('[init][token expired]');
+    // tokenの有効期間チェック
+    var elapsedTime = new Date() - reservedTokens[data.token].issued;
+    if (tokenTTL < elapsedTime) {
+      console.log('[init][token expired][time:' + elapsedTime + ']');
 
       delete reservedTokens[data.token];
       callback({ result: 'expired' });

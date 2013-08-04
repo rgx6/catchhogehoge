@@ -182,6 +182,15 @@
         $('#roomList tr.info').removeClass('info');
         $(this).addClass('info');
       }
+      // TODO : 部屋がなくなった場合にパスワード欄が有効のままになる
+      if ($(this).children('td#password').text() === 'あり') {
+        $('#enter-password').attr('required');
+        $('#enter-password').removeAttr('readonly');
+      } else {
+        $('#enter-password').attr('readonly', '');
+        $('#enter-password').removeAttr('required', '');
+        $('#enter-password').val('');
+      }
 
       var roomName = $(this).children('td#name').text();
       $('#enter-room-name').val(roomName);
@@ -201,7 +210,7 @@
       html += "<table class='table table-hover' border='1'><thead><tr><th>部屋名</th><th>パスワード</th><th>人数</th><th>コメント</th><th>辞書</th></tr></thead><tbody>";
       for (var i = 0; i < rooms.length; i += 1) {
         var room = rooms[i];
-        html += '<tr id=\'' + room.id + '\'><td id=\'name\'>' + room.name + '</td><td>' + (room.password ? 'あり' : 'なし') +
+        html += '<tr id=\'' + room.id + '\'><td id=\'name\'>' + room.name + '</td><td id=\'password\'>' + (room.password ? 'あり' : 'なし') +
                 '</td><td>' + room.playerCount + '/' + room.playerCountMax + '</td><td>' + room.comment + '</td><td>' + room.dictionaryName + '</td></tr>';
       }
       html += '</tbody></table>';
