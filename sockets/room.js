@@ -23,8 +23,6 @@
       this.theme          = null;
       // 直前に出したヒント
       this.lastHint       = null;
-      // 入室時の認証用トークン
-      this.tokens         = {};
       // TODO : playersに変える
       this.users          = [];
       // usersにおけるpainterのindex
@@ -49,6 +47,7 @@
 
     // 1ターンの秒数
     var turnSecond         = 120;
+    // TODO : ヒントを出すタイミングを文字数によって変えたり、ランダム要素を取り入れたほうがいいか？
     // 最初のヒントを出す時間
     var firstHintTime      = 90;
     // 2回目のヒントを出す時間
@@ -102,7 +101,7 @@
 
       // TODO : room存在チェックは呼び出し側で
       // TODO : painter情報と正解、優勝者の情報は別に管理するか？要検討
-      sockets.to(this.name).emit('update member', this.getPlayersInfo());
+      sockets.to(this.id).emit('update member', this.getPlayersInfo());
     };
 
     /**
@@ -141,7 +140,7 @@
             return;
           }
 
-          sockets.to(this.name).emit('push chat', { userName: escapeHTML(playerName), message: escapeHTML(message) });
+          sockets.to(this.id).emit('push chat', { userName: escapeHTML(playerName), message: escapeHTML(message) });
 
           var player = this.users[playerIndex];
           var painter = this.users[this.painterIndex];
@@ -154,10 +153,10 @@
           this.endTurn();
         } else {
           // 不正解
-          sockets.to(this.name).emit('push chat', { userName: escapeHTML(playerName), message: escapeHTML(message) });
+          sockets.to(this.id).emit('push chat', { userName: escapeHTML(playerName), message: escapeHTML(message) });
         }
       } else {
-        sockets.to(this.name).emit('push chat', { userName: escapeHTML(playerName), message: escapeHTML(message) });
+        sockets.to(this.id).emit('push chat', { userName: escapeHTML(playerName), message: escapeHTML(message) });
       }
     };
 
@@ -167,7 +166,7 @@
     Room.prototype.pushSystemMessage = function (message) {
       this.log('[system]' + message);
 
-      sockets.to(this.name).emit('push system message', escapeHTML(message));
+      sockets.to(this.id).emit('push system message', escapeHTML(message));
     };
 
     /**
@@ -193,7 +192,7 @@
      * 残り時間を送信する
      */
     Room.prototype.sendTimeLeft = function () {
-      sockets.to(this.name).emit('send time left', this.timeLeft);
+      sockets.to(this.id).emit('send time left', this.timeLeft);
     };
 
     /**
@@ -317,8 +316,8 @@
       this.turn += 1;
       this.timeLeft = turnSecond;
       this.theme = this.dictionary.getNextWord();
-      sockets.to(this.name).emit('change mode', 'turn');
-      sockets.to(this.name).emit('clear canvas');
+      sockets.to(this.id).emit('change mode', 'turn');
+      sockets.to(this.id).emit('clear canvas');
       this.imagelog.length = 0;
       if (this.painterIndex === 0) {
         this.pushSystemMessage('ラウンド ' + this.round + ' を開始します');
@@ -400,7 +399,7 @@
 
       this.mode = 'chat';
       // this.pushSystemMessage('お絵描きチャットモード');
-      sockets.to(this.name).emit('change mode', 'chat');
+      sockets.to(this.id).emit('change mode', 'chat');
     };
 
     /**
@@ -412,7 +411,7 @@
       this.mode = 'ready';
       this.timeLeft = intervalSecond;
       this.pushSystemMessage(intervalSecond + ' 秒後にゲームを開始します');
-      sockets.to(this.name).emit('change mode', 'ready');
+      sockets.to(this.id).emit('change mode', 'ready');
     };
 
     /**
@@ -424,7 +423,7 @@
       this.mode = 'interval';
       this.timeLeft = intervalSecond;
       this.pushSystemMessage(intervalSecond + ' 秒後に次のターンを開始します');
-      sockets.to(this.name).emit('change mode', 'interval');
+      sockets.to(this.id).emit('change mode', 'interval');
     };
 
     /**

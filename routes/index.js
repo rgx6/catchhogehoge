@@ -13,22 +13,16 @@ exports.redirectToIndex = function (req, res) {
 
 exports.room = function (req, res) {
   'use strict';
-  var roomName = req.body.roomName || '';
-  var userName = req.body.userName || '';
-  var token    = req.body.token || '';
+  var token = req.body.token || '';
 
   // TODO : エラーページを表示するか、lobbyにリダイレクトさせたい
-  if (roomName === '' ||
-      userName === '' ||
-      token === '') {
+  if (token === '') {
     res.send(500);
     return;
   }
 
   var params = {
     title: appName,
-    roomName: roomName,
-    userName: userName,
     token: token
   };
   res.render('gameroom', params);

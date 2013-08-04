@@ -6,18 +6,20 @@
 // TODO : エラーログをファイルに出力
 
 // TODO : 別のファイルに切り出して共有
+var idLengthLimit = 36;
 var roomNameLengthLimit = 20;
 var commentLengthLimit = 40;
 var playerNameLengthLimit = 20;
 var passwordLengthLimit =  20;
 
-var crypto = require('crypto');
-
+var uuid = require('node-uuid');
 var Room = require('./room.js').Room;
 var Player = require('./player.js').Player;
 
 // room を管理するオブジェクト
 var rooms = {};
+// 入室に使用するtokenを管理するオブジェクト
+var reservedTokens = {};
 
 // タイマー処理用オブジェクト
 // TODO : 遅延が酷いようなら別の管理方法を検討する
@@ -39,6 +41,7 @@ var roomTimer = setInterval(function () {
  */
 function timerProc() {
   'use strict';
+  // TODO : チェックを追加 jshint
   Object.keys(rooms).forEach(function (key) {
     rooms[key].timerProc();
   });
@@ -88,25 +91,27 @@ exports.onConnection = function (client) {
       return;
     }
 
-    // 部屋の存在チェック
-    if (rooms[data.roomName]) {
-      // console.log('create room exist')
-
-      fn({ result: 'room exist' });
-      return;
-    }
+    // 部屋名の重複チェック
+    var keys = Object.keys(rooms);
+    keys.forEach(function (key) {
+      var room = rooms[key];
+      if (room.name === data.roomName) {
+        // console.log('create room exist')
+  
+        fn({ result: 'room exist' });
+        return;
+      }
+    });
 
     // 作成OK
 
-    // TODO : 部屋のIDを発行
-    var id = 'dummyId';
-    rooms[data.roomName] = new Room(id, data.roomName, data.comment, data.password, data.dictionary);
+    // roomを作成
+    var id = uuid.v4();
+    rooms[id] = new Room(id, data.roomName, data.comment, data.password, data.dictionary);
 
     // 認証用トークン発行
-    // TODO : トークンの仕様変更 token(roomid) -> roomname, playername
-    // roomではなくてこのファイル内に持たせる
-    var token = Math.random();
-    rooms[data.roomName].tokens[data.userName] = token;
+    var token = uuid.v4();
+    reservedTokens[token] = { roomID: id, userName: data.userName };
 
     fn({ result: 'ok', token: token });
   });
@@ -118,11 +123,12 @@ exports.onConnection = function (client) {
     // console.log('enter room : ' + data.roomName);
 
     // TODO : 処理をRoomクラスに移動
+    console.log(data.id);
 
     // パラメータチェック
     if (typeof data === 'undefined' ||
         data === null ||
-        !checkParamLength(data.roomName, roomNameLengthLimit, true) ||
+        !checkParamLength(data.id, idLengthLimit, true) ||
         !checkParamLength(data.userName, playerNameLengthLimit, true) ||
         !checkParamLength(data.password, passwordLengthLimit, false)) {
       console.log('[enter][bad param]');
@@ -132,16 +138,17 @@ exports.onConnection = function (client) {
     }
 
     // 部屋の存在チェック
-    if (!rooms[data.roomName]) {
+    if (!rooms[data.id]) {
       // console.log('[enter][not exist]');
 
       fn({ result: 'not exist' });
       return;
     }
 
-    var room = rooms[data.roomName];
+    var room = rooms[data.id];
 
     // パスワードチェック
+    // TODO : パスワード未設定の場合はチェックしない。ブラウザ側で入力させないようにするか？
     if (room.password !== data.password) {
       // console.log('[enter][password ng]');
 
@@ -170,8 +177,8 @@ exports.onConnection = function (client) {
     // 入室OK
 
     // 認証用トークン発行
-    var token = Math.random();
-    room.tokens[data.userName] = token;
+    var token = uuid.v4();
+    reservedTokens[token] = { roomID: data.id, userName: data.userName };
 
     fn({ result: 'ok', token: token });
   });
@@ -189,12 +196,10 @@ exports.onConnection = function (client) {
     // パラメータチェック
     if (typeof data === 'undefined' ||
         data === null ||
-        !checkParamLength(data.roomName, roomNameLengthLimit, true) ||
-        !checkParamLength(data.userName, playerNameLengthLimit, true) ||
-        typeof rooms[data.roomName] === 'undefined' ||
-        typeof rooms[data.roomName].tokens[data.userName] === 'undefined'// ||
-        //rooms[data.roomName].tokens[data.userName] !== data.token
-        ) {
+        typeof data.token === 'undefined' ||
+        data.token === null ||
+        typeof reservedTokens[data.token] === 'undefined' ||
+        typeof reservedTokens[data.token] === null) {
       console.log('[init][bad param]');
 
       callback({ result: 'bad param' });
@@ -205,12 +210,14 @@ exports.onConnection = function (client) {
 
     // 認証成功
 
-    var room = rooms[data.roomName];
+    var roomID   = reservedTokens[data.token].roomID;
+    var userName = reservedTokens[data.token].userName;
+    var room = rooms[roomID];
 
-    room.log('[enter]' + data.userName);
+    room.log('[enter]' + userName);
 
     // 認証token削除
-    delete room.tokens[data.userName];
+    delete reservedTokens[data.token];
 
     // 部屋定員チェック
     if (room.users.length === room.playerCountMax) {
@@ -222,15 +229,14 @@ exports.onConnection = function (client) {
 
     // 部屋にユーザー情報を登録
     var isReady = room.mode !== 'chat';
-    room.users.push(new Player(data.userName, isReady, client));
+    room.users.push(new Player(userName, isReady, client));
 
-    // socket に部屋名とプレイヤー名を持たせておく
-    client.set('roomName', data.roomName);
-    client.set('userName', data.userName);
+    // socketに部屋とプレイヤーの情報を持たせておく
+    client.set('roomID', roomID);
+    client.set('userName', userName);
 
-    // TODO : lobbyのroomNameとかぶるといけない。が、prefixは付けたくない
-    // roomnameからuuid管理に変えれば解決？
-    client.join(data.roomName);
+    // socketをroom毎にグループ化する
+    client.join(roomID);
 
     if (room.imagelog.length > 0) {
       client.emit('push image first', room.imagelog);
@@ -243,7 +249,7 @@ exports.onConnection = function (client) {
       callback({ result: 'ok', mode: room.mode });
     }
 
-    room.pushSystemMessage(data.userName + ' さんが入室しました');
+    room.pushSystemMessage(userName + ' さんが入室しました');
     room.updateMember();
     updateLobby();
   });
@@ -255,11 +261,11 @@ exports.onConnection = function (client) {
     // console.log('send chat');
 
     // TODO : ↓get 取得できなくてもエラーにならない？
-    // 部屋名とプレイヤー名を socket から取り出す
-    var roomName;
-    client.get('roomName', function(err, _roomName) {
-      if (err || !_roomName) { return; }
-      roomName = _roomName;
+    // 部屋IDとプレイヤー名をsocketから取り出す
+    var roomID;
+    client.get('roomID', function(err, _roomID) {
+      if (err || !_roomID) { return; }
+      roomID = _roomID;
     });
     var userName;
     client.get('userName', function(err, _userName) {
@@ -269,7 +275,7 @@ exports.onConnection = function (client) {
 
     // TODO : 部屋の存在チェックはいらないか？存在しなくてもエラーにはならないはず？
 
-    var room = rooms[roomName];
+    var room = rooms[roomID];
 
     if (!room.isValidMessage(message)) {
       // 無視する
@@ -288,11 +294,11 @@ exports.onConnection = function (client) {
   client.on('send image', function (data) {
     // TODO : こまかいところ
 
-    // 部屋名とプレイヤー名を socket から取り出す
-    var roomName;
-    client.get('roomName', function (err, _roomName) {
-      if (err || !_roomName) { return; }
-      roomName = _roomName;
+    // 部屋IDとプレイヤー名をsocketから取り出す
+    var roomID;
+    client.get('roomID', function (err, _roomID) {
+      if (err || !_roomID) { return; }
+      roomID = _roomID;
     });
     var userName;
     client.get('userName', function (err, _userName) {
@@ -300,7 +306,7 @@ exports.onConnection = function (client) {
       userName = _userName;
     });
 
-    rooms[roomName].procImage(data, userName);
+    rooms[roomID].procImage(data, userName);
   });
 
   /**
@@ -308,11 +314,11 @@ exports.onConnection = function (client) {
    */
   client.on('ready', function (fn) {
     // TODO : この処理定型的だから共通化したい
-    // 部屋名とプレイヤー名を socket から取り出す
-    var roomName;
-    client.get('roomName', function(err, _roomName) {
-      if (err || !_roomName) { return; }
-      roomName = _roomName;
+    // 部屋IDとプレイヤー名をsocketから取り出す
+    var roomID;
+    client.get('roomID', function (err, _roomID) {
+      if (err || !_roomID) { return; }
+      roomID = _roomID;
     });
     var userName;
     client.get('userName', function(err, _userName) {
@@ -320,12 +326,13 @@ exports.onConnection = function (client) {
       userName = _userName;
     });
 
-    if (!rooms[roomName]) {
-      // TODO : room存在チェック
+    if (!rooms[roomID]) {
+      // TODO : room存在チェック === 比較に変更。他のメソッドにも追加
+      // 代入してからのチェックでいいのか？
       return;
     }
 
-    var room = rooms[roomName];
+    var room = rooms[roomID];
 
     // TODO : Roomで処理する
     for (var i = 0; i < room.users.length; i += 1) {
@@ -362,10 +369,10 @@ exports.onConnection = function (client) {
   client.on('disconnect', function() {
     // console.log('disconnect');
 
-    var roomName;
-    client.get('roomName', function(err, _roomName) {
-      if (err || !_roomName) { return; }
-      roomName = _roomName;
+    var roomID;
+    client.get('roomID', function (err, _roomID) {
+      if (err || !_roomID) { return; }
+      roomID = _roomID;
     });
     var userName;
     client.get('userName', function(err, _userName) {
@@ -374,15 +381,15 @@ exports.onConnection = function (client) {
     });
 
     // lobbyの場合 後始末不要
-    if (!roomName || !userName) { return; }
+    if (!roomID || !userName) { return; }
 
-    console.log('[disconnect]' + '[room:' + roomName + '][player:' + userName + ']');
+    console.log('[disconnect]' + '[id:' + roomID + '][room:' + rooms[roomID].name + '][player:' + userName + ']');
 
-    rooms[roomName].playerExit(userName);
+    rooms[roomID].playerExit(userName);
 
     // playerがいなくなったらroomも削除する
-    if (rooms[roomName].users.length === 0) {
-      delete rooms[roomName];
+    if (rooms[roomID].users.length === 0) {
+      delete rooms[roomID];
     }
 
     updateLobby();
@@ -412,6 +419,7 @@ function getRoomsInfo () {
   keys.forEach(function (key) {
     var room = rooms[key];
     roomsInfo.push({
+      id:             room.id,
       name:           escapeHTML(room.name),
       comment:        escapeHTML(room.comment),
       password:       room.password ? true : false,

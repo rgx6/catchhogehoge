@@ -107,11 +107,7 @@
           $.form({
             type: 'post',
             url:  'gameroom/',
-            data: {
-              roomName: credentials.roomName,
-              userName: credentials.userName,
-              token:    data.token
-            }
+            data: { token: data.token }
           });
         } else {
           // TODO : エラー
@@ -126,7 +122,7 @@
     $('#enter-room').on('click', function () {
       // TODO : 部屋を一覧から選択できるようにする
       var credentials = {
-        roomName: $('#enter-room-name').val(),
+        id:       $('#roomList tbody tr.info').attr('id'),
         userName: $('#enter-player-name').val(),
         password: $('#enter-password').val(),
       };
@@ -151,11 +147,7 @@
           $.form({
             type: 'post',
             url:  'gameroom/',
-            data: {
-              roomName: credentials.roomName,
-              userName: credentials.userName,
-              token:    data.token
-            }
+            data: { token: data.token }
           });
         } else {
           // TODO : エラー
@@ -196,7 +188,7 @@
         $(this).addClass('info');
       }
 
-      var roomName = $(this).children('td')[0].id;
+      var roomName = $(this).children('td#name').text();
       $('#enter-room-name').val(roomName);
     });
 
@@ -214,7 +206,7 @@
       html += "<table class='table table-hover' border='1'><thead><tr><th>部屋名</th><th>パスワード</th><th>人数</th><th>コメント</th><th>辞書</th></tr></thead><tbody>";
       for (var i = 0; i < rooms.length; i += 1) {
         var room = rooms[i];
-        html += '<tr><td id=\'' + room.name + '\'>' + room.name + '</td><td>' + (room.password ? 'あり' : 'なし') +
+        html += '<tr id=\'' + room.id + '\'><td id=\'name\'>' + room.name + '</td><td>' + (room.password ? 'あり' : 'なし') +
                 '</td><td>' + room.playerCount + '/' + room.playerCountMax + '</td><td>' + room.comment + '</td><td>' + room.dictionaryName + '</td></tr>';
       }
       html += '</tbody></table>';

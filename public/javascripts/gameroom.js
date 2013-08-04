@@ -61,8 +61,6 @@
 
       // 認証情報を送る
       socket.emit('init room', {
-        roomName: credentials.roomName,
-        userName: credentials.userName,
         token:    credentials.token
       }, function (data) {
         if (data.result === 'bad param') {
